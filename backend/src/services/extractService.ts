@@ -215,6 +215,19 @@ function normalize(parsed: unknown): ExtractResult {
   };
 }
 
+function buildClient(): Anthropic | null {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) return null;
+  return new Anthropic({ apiKey, timeout: TIMEOUT_MS, maxRetries: 1 });
+}
+
+function extractTextBlocks(message: Anthropic.Message): string {
+  return message.content
+    .map((block) => (block.type === "text" ? block.text : ""))
+    .join("")
+    .trim();
+}
+
 /**
  * Calls Anthropic to extract structured data. Returns `null` when no API key
  * is configured (caller falls back to regex). Throws on API/parse failure so
@@ -224,14 +237,8 @@ export async function extractWithLlm(
   text: string,
   context: ExtractContext,
 ): Promise<ExtractResult | null> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) return null;
-
-  const client = new Anthropic({
-    apiKey,
-    timeout: TIMEOUT_MS,
-    maxRetries: 1,
-  });
+  const client = buildClient();
+  if (!client) return null;
 
   const message = await client.messages.create({
     model: MODEL,
@@ -241,12 +248,60 @@ export async function extractWithLlm(
     messages: [{ role: "user", content: text }],
   });
 
-  const raw = message.content
-    .map((block) => (block.type === "text" ? block.text : ""))
-    .join("")
-    .trim();
+  return normalize(JSON.parse(stripToJson(extractTextBlocks(message))));
+}
 
-  return normalize(JSON.parse(stripToJson(raw)));
+export type ImageMediaType = "image/jpeg" | "image/png" | "image/gif" | "image/webp";
+
+const IMAGE_MEDIA_TYPES: ImageMediaType[] = [
+  "image/jpeg",
+  "image/png",
+  "image/gif",
+  "image/webp",
+];
+
+export function isSupportedImageMediaType(value: string): value is ImageMediaType {
+  return (IMAGE_MEDIA_TYPES as string[]).includes(value);
+}
+
+/**
+ * Calls Anthropic's vision model to read a screenshot/flyer/poster and
+ * extract the same structured shape as the text path. Returns `null` when no
+ * API key is configured. Throws on API/parse failure — callers should show an
+ * error rather than fall back to regex, since dietary/allergen and other
+ * fields are not safely guessable from an image without reading it.
+ */
+export async function extractImageWithLlm(
+  imageBase64: string,
+  mediaType: ImageMediaType,
+  context: ExtractContext,
+): Promise<ExtractResult | null> {
+  const client = buildClient();
+  if (!client) return null;
+
+  const message = await client.messages.create({
+    model: MODEL,
+    max_tokens: MAX_TOKENS,
+    temperature: TEMPERATURE,
+    system: buildSystemPrompt(context),
+    messages: [
+      {
+        role: "user",
+        content: [
+          {
+            type: "image",
+            source: { type: "base64", media_type: mediaType, data: imageBase64 },
+          },
+          {
+            type: "text",
+            text: "This is a screenshot of a campus food event post (Instagram story, flyer, or poster). Read the visible text and extract the fields exactly as instructed.",
+          },
+        ],
+      },
+    ],
+  });
+
+  return normalize(JSON.parse(stripToJson(extractTextBlocks(message))));
 }
 
 /** Maps the shared regex extractor into the {@link ExtractResult} shape. */

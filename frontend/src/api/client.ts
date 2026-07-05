@@ -98,6 +98,16 @@ export function extractPost(text: string): Promise<ExtractResult> {
   });
 }
 
+export function extractImage(
+  imageBase64: string,
+  mimeType: string,
+): Promise<ExtractResult> {
+  return request<ExtractResult>("/api/extract", {
+    method: "POST",
+    body: JSON.stringify({ image: imageBase64, mimeType }),
+  });
+}
+
 export function askAssistant(question: string): Promise<AssistantResponse> {
   return request<AssistantResponse>("/api/assistant", {
     method: "POST",

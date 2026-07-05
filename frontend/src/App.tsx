@@ -13,7 +13,7 @@ import {
   type Screen,
 } from "@mealmap/shared";
 import { configureAuthTokenGetter } from "./api/auth";
-import { extractPost } from "./api/client";
+import { extractImage, extractPost } from "./api/client";
 import { AddFoodModal } from "./components/AddFoodModal";
 import { DashboardView } from "./components/DashboardView";
 import { DetailPanel } from "./components/DetailPanel";
@@ -217,6 +217,13 @@ export default function App() {
               let result: ExtractResult | null = null;
               await gate({ type: "paste-extract" }, async () => {
                 result = await extractPost(text);
+              });
+              return result;
+            }}
+            onExtractImage={async (imageBase64, mimeType) => {
+              let result: ExtractResult | null = null;
+              await gate({ type: "paste-extract" }, async () => {
+                result = await extractImage(imageBase64, mimeType);
               });
               return result;
             }}
