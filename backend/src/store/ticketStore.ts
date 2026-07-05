@@ -112,6 +112,9 @@ export function initStore(options?: { force?: boolean }): void {
   if (seedOnBootEnabled()) {
     console.log(`[store] seeded ${state.tickets.length} tickets (SEED_ON_BOOT=true)`);
   }
+  if (filePath) {
+    markDirty();
+  }
 }
 
 export function flushPersist(): void {

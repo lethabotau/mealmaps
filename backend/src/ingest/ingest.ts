@@ -97,6 +97,16 @@ export function ingestClassified(classified: ClassifiedEvent[]): Ticket[] {
  * auto tickets. Deduped by event_id. Returns a summary and the new tickets.
  */
 export async function runIngest(): Promise<IngestSummary> {
+  if (!process.env.ALGOLIA_SEARCH_KEY) {
+    console.warn("[ingest] ALGOLIA_SEARCH_KEY is not set — skipping ingest");
+    return {
+      fetched: 0,
+      classified: 0,
+      inserted: 0,
+      insertedTickets: [],
+    };
+  }
+
   const events = await fetchEvents();
   const classified = await classifyEvents(events);
   const insertedTickets = ingestClassified(classified);

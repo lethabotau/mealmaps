@@ -21,6 +21,26 @@ const sampleEvent: SocietyEvent = {
   objectID: "obj-1",
 };
 
+describe("runIngest resilience", () => {
+  it("returns an empty summary when ALGOLIA_SEARCH_KEY is unset", async () => {
+    const prev = process.env.ALGOLIA_SEARCH_KEY;
+    delete process.env.ALGOLIA_SEARCH_KEY;
+    try {
+      const { runIngest } = await import("./ingest.js");
+      const summary = await runIngest();
+      expect(summary).toEqual({
+        fetched: 0,
+        classified: 0,
+        inserted: 0,
+        insertedTickets: [],
+      });
+    } finally {
+      if (prev === undefined) delete process.env.ALGOLIA_SEARCH_KEY;
+      else process.env.ALGOLIA_SEARCH_KEY = prev;
+    }
+  });
+});
+
 describe("auto-ticket blurbs", () => {
   it("uses the classifier blurb when present", () => {
     const blurb =

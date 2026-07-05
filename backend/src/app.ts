@@ -4,11 +4,15 @@ import { clerkAuthMiddleware } from "./auth/clerk.js";
 import { extractRouter } from "./routes/extract.js";
 import { ingestRouter } from "./routes/ingest.js";
 import { ticketsRouter } from "./routes/tickets.js";
+import { mountFrontendStatic } from "./staticFrontend.js";
 
 export function createApp() {
   const app = express();
 
-  app.use(cors());
+  if (process.env.NODE_ENV !== "production") {
+    app.use(cors());
+  }
+
   app.use(express.json());
   app.use(clerkAuthMiddleware);
 
@@ -27,6 +31,10 @@ export function createApp() {
   app.use("/api/tickets", ticketsRouter);
   app.use("/api/extract", extractRouter);
   app.use("/api/ingest", ingestRouter);
+
+  if (process.env.NODE_ENV === "production") {
+    mountFrontendStatic(app);
+  }
 
   return app;
 }

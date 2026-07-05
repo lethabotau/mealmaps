@@ -29,7 +29,8 @@ process.on("SIGINT", () => shutdown("SIGINT"));
 process.on("SIGTERM", () => shutdown("SIGTERM"));
 
 app.listen(PORT, () => {
-  console.log(`MealMap backend listening on http://localhost:${PORT}`);
+  const mode = process.env.NODE_ENV === "production" ? "production" : "development";
+  console.log(`MealMap listening on port ${PORT} (${mode})`);
 
   // Run boot ingest on a fresh store (no auto tickets in snapshot). Never crash startup.
   try {
