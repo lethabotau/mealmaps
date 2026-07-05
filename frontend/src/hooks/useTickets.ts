@@ -25,8 +25,11 @@ export function useTickets() {
     error: null,
   });
 
-  const reload = useCallback(async () => {
-    setState((prev) => ({ ...prev, loading: true, error: null }));
+  const reload = useCallback(async (opts?: { silent?: boolean }) => {
+    const silent = opts?.silent ?? false;
+    if (!silent) {
+      setState((prev) => ({ ...prev, loading: true, error: null }));
+    }
     try {
       const data = await fetchTickets();
       setState({
@@ -37,6 +40,9 @@ export function useTickets() {
         error: null,
       });
     } catch (err) {
+      // A silent (background) refresh should never clobber a working view with
+      // an error screen — only surface load errors from the initial fetch.
+      if (silent) return;
       setState((prev) => ({
         ...prev,
         loading: false,
@@ -49,6 +55,19 @@ export function useTickets() {
     void reload();
   }, [reload]);
 
+  // Boot ingest runs asynchronously (~20-30s) after the server starts listening,
+  // so the first fetch can precede it. Refresh once shortly after mount, and
+  // whenever the tab regains focus, to pick up auto tickets without a manual reload.
+  useEffect(() => {
+    const timer = window.setTimeout(() => void reload({ silent: true }), 20_000);
+    const onFocus = () => void reload({ silent: true });
+    window.addEventListener("focus", onFocus);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [reload]);
+
   const addTicket = useCallback(async (input: CreateTicketInput) => {
     const { ticket } = await createTicket(input);
     setState((prev) => ({
@@ -58,15 +77,21 @@ export function useTickets() {
     return ticket;
   }, []);
 
-  const submitReport = useCallback(async (id: string, kind: ReportKind) => {
-    const data = await reportTicket(id, kind);
-    setState((prev) => ({
-      ...prev,
-      overrides: data.overrides,
-      confirm: data.confirm,
-    }));
-    return data;
-  }, []);
+  const submitReport = useCallback(
+    async (id: string, kind: ReportKind, locationText?: string) => {
+      const data = await reportTicket(id, kind, locationText);
+      setState((prev) => ({
+        ...prev,
+        // Merge the updated ticket so a trust flip / newly-pinned location
+        // (coords + where) re-renders and re-ranks without a full reload.
+        tickets: prev.tickets.map((t) => (t.id === data.ticket.id ? data.ticket : t)),
+        overrides: data.overrides,
+        confirm: data.confirm,
+      }));
+      return data;
+    },
+    [],
+  );
 
   return {
     ...state,

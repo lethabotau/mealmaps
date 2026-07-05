@@ -1,10 +1,13 @@
-import type { RankedTicketView } from "@mealmap/shared";
+import type { CampusArea, RankedTicketView } from "@mealmap/shared";
 import type { FilterGroup } from "../lib/uiHelpers";
 import { EmptyState } from "./EmptyState";
 import { FilterBar } from "./FilterBar";
 import { TicketCard } from "./TicketCard";
+import { VantageBar } from "./VantageBar";
 
 interface RankedViewProps {
+  vantage: CampusArea;
+  onVantageChange: (value: CampusArea) => void;
   filterGroups: FilterGroup[];
   rankedTickets: RankedTicketView[];
   resultCount: number;
@@ -15,6 +18,8 @@ interface RankedViewProps {
 }
 
 export function RankedView({
+  vantage,
+  onVantageChange,
   filterGroups,
   rankedTickets,
   resultCount,
@@ -41,20 +46,10 @@ export function RankedView({
           margin: "8px 0 4px",
         }}
       >
-        <h1
-          style={{
-            fontFamily: "Archivo",
-            fontWeight: 900,
-            fontSize: "clamp(30px,4vw,44px)",
-            letterSpacing: "-1.2px",
-            margin: 0,
-          }}
-        >
-          Ranked results
-        </h1>
+        <h1 className="mm-page-title">Ranked results</h1>
         <span
           style={{
-            fontFamily: "Space Mono, monospace",
+            fontFamily: "var(--font-mono)",
             fontSize: 14,
             color: "#8a7d6c",
           }}
@@ -64,7 +59,7 @@ export function RankedView({
       </div>
       <p
         style={{
-          fontFamily: "Space Mono, monospace",
+          fontFamily: "var(--font-mono)",
           fontSize: 12.5,
           color: "#8a7d6c",
           margin: "6px 0 20px",
@@ -74,45 +69,19 @@ export function RankedView({
         Sorted by worth-walking, then distance. Gone tickets sink to the bottom.
       </p>
 
+      <VantageBar vantage={vantage} onChange={onVantageChange} />
       <div className="mm-panel" style={{ margin: "0 0 26px", padding: "16px 18px" }}>
         <FilterBar groups={filterGroups} embedded />
       </div>
 
       {hasResults ? (
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: 16,
-            maxWidth: 760,
-          }}
-        >
+        <div className="mm-ranked-list">
+          <button type="button" onClick={onOpenAdd} className="mm-ranked-cta">
+            + Found food
+          </button>
           {rankedTickets.map((ticket) => (
-            <div
-              key={ticket.id}
-              style={{ display: "flex", alignItems: "stretch", gap: 14 }}
-            >
-              <div
-                style={{
-                  flexShrink: 0,
-                  width: 40,
-                  display: "flex",
-                  justifyContent: "center",
-                  paddingTop: 6,
-                }}
-              >
-                <span
-                  style={{
-                    fontFamily: "Archivo",
-                    fontWeight: 900,
-                    fontSize: 34,
-                    color: "#d8ccb4",
-                    lineHeight: 1,
-                  }}
-                >
-                  {ticket.rank}
-                </span>
-              </div>
+            <div key={ticket.id} className="mm-ranked-row">
+              <span className="mm-ranked-num">{ticket.rank}</span>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <TicketCard
                   ticket={ticket}

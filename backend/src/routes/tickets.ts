@@ -1,4 +1,5 @@
 import type { CreateTicketInput, ReportKind } from "@mealmap/shared";
+import { normalizeTicketCost } from "@mealmap/shared";
 import { Router } from "express";
 import { requireWriteAuth, resolveAuthUser } from "../auth/clerk.js";
 import {
@@ -55,10 +56,9 @@ ticketsRouter.post("/", requireWriteAuth, async (req, res) => {
     {
       name: body.name,
       source: body.source ?? "Student report",
-      cost: body.cost ?? 0,
-      area: body.area ?? "quad",
+      cost: normalizeTicketCost(body.cost ?? 0),
+      area: body.area ?? "upper",
       time: body.time,
-      walk: body.walk,
       where: body.where,
       ends: body.ends,
       access: body.access,
@@ -92,12 +92,16 @@ ticketsRouter.post("/:id/report", requireWriteAuth, async (req, res) => {
     return;
   }
 
+  const locationText =
+    typeof req.body?.locationText === "string" ? req.body.locationText : undefined;
+
   const reportedBy = await resolveAuthUser(req);
-  const report = applyReport(ticket.id, kind, reportedBy);
+  const report = applyReport(ticket.id, kind, reportedBy, locationText);
 
   res.json({
     overrides: getOverrides(),
     confirm: getConfirmMeta(),
     report,
+    ticket: getTicket(ticket.id),
   });
 });

@@ -1,7 +1,7 @@
 import request from "supertest";
 import type { NextFunction, Request, Response } from "express";
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { resetStore } from "../store/ticketStore.js";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { initStore, resetStore } from "../store/ticketStore.js";
 
 vi.mock("../auth/clerk.js", () => ({
   clerkAuthMiddleware: (_req: Request, _res: Response, next: NextFunction) =>
@@ -23,8 +23,12 @@ vi.mock("../auth/clerk.js", () => ({
 const { createApp } = await import("../app.js");
 const app = createApp();
 
+beforeAll(() => {
+  initStore();
+});
+
 afterEach(() => {
-  resetStore();
+  resetStore({ seed: true });
 });
 
 describe("GET /health", () => {

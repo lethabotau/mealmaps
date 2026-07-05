@@ -1,10 +1,12 @@
+import { useEffect, useRef, useState } from "react";
 import type { ReportKind, TicketView } from "@mealmap/shared";
+import { SYSTEM_INGEST_USER } from "@mealmap/shared";
 
 interface DetailPanelProps {
   ticket: TicketView;
   toast: string;
   onClose: () => void;
-  onReport: (kind: ReportKind) => void;
+  onReport: (kind: ReportKind, locationText?: string) => void;
 }
 
 const REPORT_BUTTONS: Array<{ label: string; color: string; kind: ReportKind }> = [
@@ -16,33 +18,29 @@ const REPORT_BUTTONS: Array<{ label: string; color: string; kind: ReportKind }> 
 ];
 
 export function DetailPanel({ ticket, toast, onClose, onReport }: DetailPanelProps) {
+  const isAutoSource = ticket.createdBy.userId === SYSTEM_INGEST_USER.userId;
+  const isUnverified = ticket.trust === "unverified";
+  const needsLocation = ticket.isPinnable;
+  const [pinText, setPinText] = useState("");
+  const pinRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (needsLocation) pinRef.current?.focus();
+  }, [ticket.id, needsLocation]);
+
+  // Close on Escape (unless a layer above, e.g. the sign-in overlay, consumed it).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !e.defaultPrevented) onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
   return (
     <>
-      <div
-        onClick={onClose}
-        style={{
-          position: "fixed",
-          inset: 0,
-          background: "rgba(27,23,18,0.4)",
-          zIndex: 39,
-          animation: "mm-scrim .2s ease both",
-        }}
-      />
-      <aside
-        style={{
-          position: "fixed",
-          top: 0,
-          right: 0,
-          height: "100vh",
-          width: "min(468px,100vw)",
-          background: "#FBF7EE",
-          borderLeft: "3px solid #1B1712",
-          boxShadow: "-8px 0 24px rgba(27,23,18,0.25)",
-          zIndex: 40,
-          overflowY: "auto",
-          animation: "mm-slideOver .28s cubic-bezier(.2,.8,.2,1) both",
-        }}
-      >
+      <div onClick={onClose} className="mm-detail-scrim" />
+      <aside className="mm-detail-panel">
         <div
           style={{
             background: "#1B1712",
@@ -58,26 +56,14 @@ export function DetailPanel({ ticket, toast, onClose, onReport }: DetailPanelPro
         >
           <span
             style={{
-              fontFamily: "Space Mono, monospace",
+              fontFamily: "var(--font-mono)",
               fontSize: 12,
               letterSpacing: "2px",
             }}
           >
             TICKET · NO. {ticket.no}
           </span>
-          <button
-            onClick={onClose}
-            style={{
-              fontFamily: "Space Mono, monospace",
-              fontSize: 18,
-              background: "none",
-              border: "none",
-              color: "#FBF7EE",
-              cursor: "pointer",
-              lineHeight: 1,
-              padding: "2px 6px",
-            }}
-          >
+          <button type="button" onClick={onClose} className="mm-detail-close">
             ✕
           </button>
         </div>
@@ -100,8 +86,8 @@ export function DetailPanel({ ticket, toast, onClose, onReport }: DetailPanelPro
                   padding: "2px 8px",
                   borderRadius: 4,
                   transform: "rotate(-2deg)",
-                  fontFamily: "Space Mono, monospace",
-                  fontWeight: 700,
+                  fontFamily: "var(--font-mono)",
+                  fontWeight: 500,
                   fontSize: 11,
                   letterSpacing: "1.5px",
                   marginBottom: 10,
@@ -111,8 +97,8 @@ export function DetailPanel({ ticket, toast, onClose, onReport }: DetailPanelPro
               </span>
               <h2
                 style={{
-                  fontFamily: "Archivo",
-                  fontWeight: 900,
+                  fontFamily: "var(--font-display)",
+                  fontWeight: 800,
                   fontSize: 28,
                   lineHeight: 1.02,
                   letterSpacing: "-0.8px",
@@ -123,44 +109,78 @@ export function DetailPanel({ ticket, toast, onClose, onReport }: DetailPanelPro
               </h2>
               <div
                 style={{
-                  fontFamily: "Space Mono, monospace",
+                  fontFamily: "var(--font-mono)",
                   fontSize: 12.5,
                   color: "#8a7d6c",
                   marginTop: 7,
                 }}
               >
-                via {ticket.source}
+                {isAutoSource
+                  ? `via ${ticket.createdBy.displayName} · ${ticket.source}`
+                  : `via ${ticket.source}`}
               </div>
             </div>
-            <div
-              style={{
-                flexShrink: 0,
-                textAlign: "center",
-                fontFamily: "Archivo",
-                fontWeight: 900,
-                fontSize: 16,
-                color: ticket.worthColor,
-                border: `3px solid ${ticket.worthColor}`,
-                borderRadius: 8,
-                padding: "8px 10px",
-                transform: "rotate(-6deg)",
-                lineHeight: 1.05,
-              }}
-            >
-              {ticket.worthLabel}
+            {isUnverified ? (
               <div
                 style={{
-                  fontFamily: "Space Mono, monospace",
-                  fontWeight: 400,
-                  fontSize: 8,
-                  letterSpacing: "1px",
-                  color: ticket.worthColor,
-                  marginTop: 3,
+                  flexShrink: 0,
+                  textAlign: "center",
+                  fontFamily: "var(--font-display)",
+                  fontWeight: 800,
+                  fontSize: 13,
+                  color: "#B7791F",
+                  border: "3px solid #B7791F",
+                  borderRadius: 8,
+                  padding: "8px 10px",
+                  transform: "rotate(-6deg)",
+                  lineHeight: 1.05,
                 }}
               >
-                WORTH WALKING
+                UNVERIFIED
+                <div
+                  style={{
+                    fontFamily: "var(--font-mono)",
+                    fontWeight: 400,
+                    fontSize: 8,
+                    letterSpacing: "1px",
+                    color: "#B7791F",
+                    marginTop: 3,
+                  }}
+                >
+                  NOT YET CONFIRMED
+                </div>
               </div>
-            </div>
+            ) : (
+              <div
+                style={{
+                  flexShrink: 0,
+                  textAlign: "center",
+                  fontFamily: "var(--font-display)",
+                  fontWeight: 800,
+                  fontSize: 16,
+                  color: ticket.worthColor,
+                  border: `3px solid ${ticket.worthColor}`,
+                  borderRadius: 8,
+                  padding: "8px 10px",
+                  transform: "rotate(-6deg)",
+                  lineHeight: 1.05,
+                }}
+              >
+                {ticket.worthLabel}
+                <div
+                  style={{
+                    fontFamily: "var(--font-mono)",
+                    fontWeight: 400,
+                    fontSize: 8,
+                    letterSpacing: "1px",
+                    color: ticket.worthColor,
+                    marginTop: 3,
+                  }}
+                >
+                  WORTH WALKING
+                </div>
+              </div>
+            )}
           </div>
 
           <div
@@ -169,7 +189,7 @@ export function DetailPanel({ ticket, toast, onClose, onReport }: DetailPanelPro
               display: "grid",
               gridTemplateColumns: "auto 1fr",
               gap: "10px 16px",
-              fontFamily: "Space Mono, monospace",
+              fontFamily: "var(--font-mono)",
               fontSize: 13.5,
               borderTop: "2px dashed #d9cdb5",
               borderBottom: "2px dashed #d9cdb5",
@@ -177,16 +197,27 @@ export function DetailPanel({ ticket, toast, onClose, onReport }: DetailPanelPro
             }}
           >
             <span style={{ color: "#9a8d7a" }}>COST</span>
-            <span style={{ fontWeight: 700, color: ticket.costColor }}>
+            <span style={{ fontWeight: 500, color: ticket.costColor }}>
               {ticket.costLabel}
             </span>
             <span style={{ color: "#9a8d7a" }}>WHERE</span>
-            <span style={{ color: "#1B1712" }}>{ticket.where}</span>
-            <span style={{ color: "#9a8d7a" }}>WALK</span>
-            <span style={{ color: "#1B1712" }}>{ticket.walk} min</span>
-            <span style={{ color: "#9a8d7a" }}>ENDS</span>
-            <span style={{ fontWeight: 700, color: ticket.endsColor }}>
-              {ticket.ends}
+            <span
+              style={{
+                color: ticket.isPinnable ? "#E5431E" : "#1B1712",
+                fontWeight: ticket.isPinnable ? 700 : 400,
+              }}
+            >
+              {ticket.whereDisplay}
+            </span>
+            {ticket.showWalk && (
+              <>
+                <span style={{ color: "#9a8d7a" }}>WALK</span>
+                <span style={{ color: "#1B1712" }}>{ticket.walkDetailText}</span>
+              </>
+            )}
+            <span style={{ color: "#9a8d7a" }}>{ticket.timeLabel}</span>
+            <span style={{ fontWeight: 500, color: ticket.timeColor }}>
+              {ticket.timeText}
             </span>
             <span style={{ color: "#9a8d7a" }}>ACCESS</span>
             <span style={{ color: "#1B1712" }}>{ticket.access}</span>
@@ -196,7 +227,7 @@ export function DetailPanel({ ticket, toast, onClose, onReport }: DetailPanelPro
 
           <p
             style={{
-              fontFamily: "Archivo",
+              fontFamily: "var(--font-sans)",
               fontSize: 15,
               lineHeight: 1.5,
               color: "#4A423A",
@@ -206,9 +237,30 @@ export function DetailPanel({ ticket, toast, onClose, onReport }: DetailPanelPro
             {ticket.blurb}
           </p>
 
+          {ticket.sourceUrl && (
+            <a
+              href={ticket.sourceUrl}
+              target="_blank"
+              rel="noreferrer"
+              style={{
+                display: "inline-block",
+                fontFamily: "var(--font-mono)",
+                fontSize: 12.5,
+                fontWeight: 500,
+                letterSpacing: "0.5px",
+                color: "#1B1712",
+                textDecoration: "underline",
+                textUnderlineOffset: 3,
+                margin: "0 0 22px",
+              }}
+            >
+              check event page →
+            </a>
+          )}
+
           <div
             style={{
-              fontFamily: "Space Mono, monospace",
+              fontFamily: "var(--font-mono)",
               fontSize: 11,
               letterSpacing: "2px",
               color: "#8a7d6c",
@@ -217,14 +269,46 @@ export function DetailPanel({ ticket, toast, onClose, onReport }: DetailPanelPro
           >
             — REPORT WHAT YOU SEE —
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+
+          {needsLocation && (
+            <div style={{ marginBottom: 12 }}>
+              <label
+                style={{
+                  display: "block",
+                  fontFamily: "var(--font-mono)",
+                  fontSize: 11.5,
+                  color: "#8a7d6c",
+                  marginBottom: 6,
+                }}
+              >
+                Where exactly? (optional — helps with "Still available")
+              </label>
+              <input
+                ref={pinRef}
+                value={pinText}
+                onChange={(e) => setPinText(e.target.value)}
+                placeholder="e.g. Quad 1043"
+                className="mm-form-input"
+              />
+            </div>
+          )}
+
+          <div className="mm-detail-report-grid">
             {REPORT_BUTTONS.map((button) => (
               <button
                 key={button.kind}
-                onClick={() => onReport(button.kind)}
+                onClick={() =>
+                  onReport(
+                    button.kind,
+                    button.kind === "still"
+                      ? pinText.trim() || undefined
+                      : undefined,
+                  )
+                }
+                className="mm-detail-report-btn"
                 style={{
-                  fontFamily: "Archivo",
-                  fontWeight: 700,
+                  fontFamily: "var(--font-sans)",
+                  fontWeight: 500,
                   fontSize: 13.5,
                   background: "#FFFDF7",
                   color: button.color,
@@ -250,7 +334,7 @@ export function DetailPanel({ ticket, toast, onClose, onReport }: DetailPanelPro
           >
             <div
               style={{
-                fontFamily: "Space Mono, monospace",
+                fontFamily: "var(--font-mono)",
                 fontSize: 12.5,
                 color: "#1B1712",
               }}
@@ -264,8 +348,8 @@ export function DetailPanel({ ticket, toast, onClose, onReport }: DetailPanelPro
             <div
               style={{
                 marginTop: 14,
-                fontFamily: "Archivo",
-                fontWeight: 700,
+                fontFamily: "var(--font-sans)",
+                fontWeight: 500,
                 fontSize: 14,
                 color: "#3C7A45",
                 background: "#eaf3e7",

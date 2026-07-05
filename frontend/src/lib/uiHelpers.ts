@@ -9,6 +9,7 @@ export interface FilterOption {
 
 export interface FilterGroup {
   name: string;
+  kind?: "segmented" | "toggle";
   options: FilterOption[];
 }
 
@@ -23,17 +24,14 @@ export function buildFilterGroups(
 
   const groups: Array<{
     name: string;
-    key: keyof Filters;
+    kind?: "segmented" | "toggle";
+    key?: keyof Filters;
     opts: Array<[Filters[keyof Filters], string]>;
   }> = [
     {
-      name: "BUDGET",
-      key: "budget",
-      opts: [
-        ["free", "$0"],
-        ["u5", "Under $5"],
-        ["u10", "Under $10"],
-      ],
+      name: "",
+      kind: "toggle",
+      opts: [[filters.freeOnly as Filters[keyof Filters], "Free only"]],
     },
     {
       name: "WHEN",
@@ -44,27 +42,29 @@ export function buildFilterGroups(
         ["today", "Today"],
       ],
     },
-    {
-      name: "AREA",
-      key: "area",
-      opts: [
-        ["quad", "Quad"],
-        ["library", "Library"],
-        ["lower", "Lower Campus"],
-        ["anywhere", "Anywhere"],
-      ],
-    },
   ];
 
   return groups.map((group) => ({
     name: group.name,
+    kind: group.kind ?? "segmented",
     options: group.opts.map(([value, label]) => {
-      const active = filters[group.key] === value;
+      const active =
+        group.kind === "toggle"
+          ? filters.freeOnly
+          : group.key
+            ? filters[group.key] === value
+            : false;
       const colors = chip(active);
       return {
         label,
         ...colors,
-        onClick: () => setFilter(group.key, value),
+        onClick: () => {
+          if (group.kind === "toggle") {
+            setFilter("freeOnly", !filters.freeOnly);
+            return;
+          }
+          if (group.key) setFilter(group.key, value);
+        },
       };
     }),
   }));

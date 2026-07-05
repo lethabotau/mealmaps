@@ -5,13 +5,31 @@ import type {
   Ticket,
   TicketConfirmMeta,
   TicketOverrides,
+  TimeWindow,
   UserIdentity,
+  WorthLevel,
 } from "@mealmap/shared";
 import {
   SEED_TICKETS,
+  SYSTEM_INGEST_USER,
+  UNCONFIRMED_WHERE,
+  OFF_CAMPUS_WHERE,
   createTicketId,
   generateTicketNumber,
+  normalizeTicketCost,
+  resolveLocation,
+  inferAreaFromWhere,
+  isOnCampus,
 } from "@mealmap/shared";
+import {
+  StorePersistence,
+  loadSnapshot,
+  resolveDataFile,
+  snapshotFromState,
+  type StoreSnapshot,
+} from "./storePersistence.js";
+
+export { SYSTEM_INGEST_USER };
 
 interface StoreState {
   tickets: Ticket[];
@@ -21,11 +39,87 @@ interface StoreState {
 }
 
 const state: StoreState = {
-  tickets: structuredClone(SEED_TICKETS),
+  tickets: [],
   overrides: {},
   confirm: {},
   reports: [],
 };
+
+/** External event ids already ingested, for cross-run dedupe. */
+const ingestedEventIds = new Set<string>();
+
+let persistence = new StorePersistence(null);
+let initialized = false;
+
+function seedOnBootEnabled(): boolean {
+  return process.env.SEED_ON_BOOT === "true";
+}
+
+function applySnapshot(snapshot: StoreSnapshot): void {
+  state.tickets = structuredClone(snapshot.tickets);
+  state.overrides = structuredClone(snapshot.overrides);
+  state.confirm = structuredClone(snapshot.confirm);
+  state.reports = structuredClone(snapshot.reports);
+  ingestedEventIds.clear();
+  for (const id of snapshot.ingestedEventIds) {
+    ingestedEventIds.add(id);
+  }
+}
+
+function freshState(useSeeds: boolean): void {
+  state.tickets = useSeeds ? structuredClone(SEED_TICKETS) : [];
+  state.overrides = {};
+  state.confirm = {};
+  state.reports = [];
+  ingestedEventIds.clear();
+}
+
+function currentSnapshot(): StoreSnapshot {
+  return snapshotFromState(state, ingestedEventIds);
+}
+
+function markDirty(): void {
+  persistence.schedule(currentSnapshot());
+}
+
+/**
+ * Load persisted state from disk on boot, or start fresh.
+ * Seeds are applied only on a fresh start when SEED_ON_BOOT=true (default off).
+ */
+export function initStore(options?: { force?: boolean }): void {
+  if (initialized && !options?.force) return;
+  initialized = true;
+
+  const filePath = resolveDataFile();
+  persistence = new StorePersistence(filePath);
+
+  if (filePath) {
+    const result = loadSnapshot(filePath);
+    if (result.ok) {
+      applySnapshot(result.snapshot);
+      console.log(
+        `[store] loaded ${state.tickets.length} tickets from ${filePath}`,
+      );
+      return;
+    }
+
+    console.warn(
+      `[store] could not load ${filePath} (${result.reason}) — starting fresh`,
+    );
+  }
+
+  freshState(seedOnBootEnabled());
+  if (seedOnBootEnabled()) {
+    console.log(`[store] seeded ${state.tickets.length} tickets (SEED_ON_BOOT=true)`);
+  }
+  if (filePath) {
+    markDirty();
+  }
+}
+
+export function flushPersist(): void {
+  persistence.flush();
+}
 
 export function listTickets(): Ticket[] {
   return [...state.tickets];
@@ -48,11 +142,11 @@ export function createTicket(
     no: generateTicketNumber(),
     name: input.name,
     source: input.source,
-    cost: input.cost,
+    cost: normalizeTicketCost(input.cost),
     area: input.area,
     time: input.time ?? "now",
-    walk: input.walk ?? 5,
     where: input.where,
+    coords: resolveLocation(input.where)?.coords ?? null,
     ends: input.ends,
     access: input.access,
     confirmed: "just now",
@@ -63,7 +157,118 @@ export function createTicket(
   };
 
   state.tickets.unshift(ticket);
+  markDirty();
   return ticket;
+}
+
+/** True once at least one auto-ingested ticket exists (used to gate boot ingest). */
+export function hasAutoTickets(): boolean {
+  return state.tickets.some(
+    (ticket) => ticket.createdBy.userId === SYSTEM_INGEST_USER.userId,
+  );
+}
+
+export interface AutoTicketInput {
+  eventId: string;
+  name: string;
+  /** Origin society, surfaced as "via MealMap Auto · <society>". */
+  society: string;
+  cost: number;
+  /** Raw Algolia price string for COST range display. */
+  sourcePrice?: string;
+  time: TimeWindow;
+  /** Intra-tier ranking hint derived from food likelihood (high vs maybe). */
+  worth: WorthLevel;
+  ends: string;
+  sourceUrl: string;
+  blurb: string;
+  foodLikelihood?: "high" | "medium";
+  classifyReason?: string;
+  venueHint?: string | null;
+  onCampus?: boolean;
+}
+
+function resolveAutoTicketLocation(input: {
+  venueHint?: string | null;
+  onCampus?: boolean;
+}): { where: string; coords: Ticket["coords"]; onCampus: boolean; area: Ticket["area"] } {
+  const onCampus = input.onCampus !== false;
+
+  if (!onCampus) {
+    return {
+      where: OFF_CAMPUS_WHERE,
+      coords: null,
+      onCampus: false,
+      area: "upper",
+    };
+  }
+
+  if (input.venueHint) {
+    const resolved = resolveLocation(input.venueHint);
+    if (resolved) {
+      return {
+        where: resolved.name,
+        coords: resolved.coords,
+        onCampus: true,
+        area: inferAreaFromWhere(resolved.name),
+      };
+    }
+  }
+
+  return {
+    where: UNCONFIRMED_WHERE,
+    coords: null,
+    onCampus: true,
+    area: "upper",
+  };
+}
+
+/**
+ * Inserts an auto-ingested ticket in the `unverified` trust tier so it ranks
+ * below every human (confirmed) ticket regardless of worth. `source` carries the
+ * society name for display; `createdBy` marks it as system-ingested.
+ * Dedupes by external `eventId`; returns `inserted: false` if already ingested.
+ */
+export function insertAutoTicket(
+  input: AutoTicketInput,
+): { inserted: boolean; ticket?: Ticket } {
+  if (input.eventId && ingestedEventIds.has(input.eventId)) {
+    return { inserted: false };
+  }
+
+  const id = input.eventId ? `auto-${input.eventId}` : createTicketId("t");
+  const location = resolveAutoTicketLocation(input);
+  const ticket: Ticket = {
+    id,
+    no: generateTicketNumber(),
+    name: input.name,
+    source: input.society || "UNSW society",
+    cost: input.cost,
+    sourcePrice: input.sourcePrice,
+    area: location.area,
+    time: input.time,
+    where: location.where,
+    coords: location.coords,
+    onCampus: location.onCampus,
+    ends: input.ends,
+    access: "check event page",
+    confirmed: "not yet confirmed",
+    worth: input.worth,
+    status: "available",
+    blurb: input.blurb,
+    createdBy: SYSTEM_INGEST_USER,
+    sourceUrl: input.sourceUrl,
+    trust: "unverified",
+    foodLikelihood: input.foodLikelihood,
+    classifyReason: input.classifyReason,
+  };
+
+  state.tickets.push(ticket);
+  state.confirm[id] = { count: 0, last: "not yet confirmed" };
+  if (input.eventId) ingestedEventIds.add(input.eventId);
+  markDirty();
+
+  return { inserted: true, ticket };
 }
 
 export function getOverrides(): TicketOverrides {
@@ -78,6 +283,7 @@ export function applyReport(
   id: string,
   kind: ReportKind,
   reportedBy: UserIdentity,
+  locationText?: string,
 ): ReportRecord {
   const current = state.confirm[id] ?? { count: 3, last: "4 min ago" };
   const record: ReportRecord = {
@@ -91,6 +297,27 @@ export function applyReport(
   state.reports.unshift(record);
 
   if (kind === "still") {
+    const ticket = state.tickets.find((t) => t.id === id);
+    if (ticket) {
+      if (ticket.trust === "unverified") {
+        ticket.trust = "confirmed";
+      }
+      if (!ticket.coords && isOnCampus(ticket)) {
+        const pin = locationText?.trim();
+        if (pin) {
+          const resolved = resolveLocation(pin);
+          if (resolved) {
+            ticket.coords = resolved.coords;
+            ticket.where = resolved.name;
+          } else {
+            ticket.where = pin;
+          }
+        } else {
+          const resolved = resolveLocation(ticket.where);
+          if (resolved) ticket.coords = resolved.coords;
+        }
+      }
+    }
     state.confirm[id] = {
       count: current.count + 1,
       last: "just now",
@@ -118,13 +345,12 @@ export function applyReport(
     };
   }
 
+  markDirty();
   return record;
 }
 
 /** Reset store — used in tests only. */
-export function resetStore(): void {
-  state.tickets = structuredClone(SEED_TICKETS);
-  state.overrides = {};
-  state.confirm = {};
-  state.reports = [];
+export function resetStore(options?: { seed?: boolean }): void {
+  persistence.cancel();
+  freshState(options?.seed ?? seedOnBootEnabled());
 }

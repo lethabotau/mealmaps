@@ -6,10 +6,12 @@ import {
 } from "react";
 import { SignIn, useAuth } from "@clerk/clerk-react";
 import type { ReportKind } from "@mealmap/shared";
+import { clerkAppearance } from "../lib/clerkAppearance";
 
 export type PendingAction =
   | { type: "add-food" }
-  | { type: "report"; kind: ReportKind }
+  | { type: "report"; kind: ReportKind; locationText?: string }
+  | { type: "paste-extract" }
   | { type: "paste-submit" };
 
 const PENDING_STORAGE_KEY = "mealmap:pending-action";
@@ -21,6 +23,7 @@ function parsePending(raw: string): PendingAction | null {
     const data = JSON.parse(raw) as PendingAction;
     if (data.type === "add-food") return { type: "add-food" };
     if (data.type === "report" && data.kind) return data;
+    if (data.type === "paste-extract") return { type: "paste-extract" };
     if (data.type === "paste-submit") return { type: "paste-submit" };
   } catch {
     /* ignore corrupt storage */
@@ -60,6 +63,21 @@ interface AuthSignInOverlayProps {
 }
 
 export function AuthSignInOverlay({ open, onDismiss }: AuthSignInOverlayProps) {
+  // Escape dismisses. Capture phase + preventDefault so an underlying panel's
+  // own Escape handler (see DetailPanel/AddFoodModal) doesn't also close.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        onDismiss();
+      }
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [open, onDismiss]);
+
   if (!open) return null;
 
   return (
@@ -73,32 +91,9 @@ export function AuthSignInOverlay({ open, onDismiss }: AuthSignInOverlayProps) {
           zIndex: 100,
         }}
       />
-      <div
-        style={{
-          position: "fixed",
-          inset: 0,
-          zIndex: 101,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: 24,
-          pointerEvents: "none",
-        }}
-      >
-        <div
-          onClick={(e) => e.stopPropagation()}
-          style={{
-            pointerEvents: "auto",
-            width: "min(420px, 100%)",
-            maxHeight: "90vh",
-            overflow: "auto",
-            background: "#FBF7EE",
-            border: "3px solid #1B1712",
-            borderRadius: 12,
-            boxShadow: "8px 8px 0 rgba(27,23,18,0.85)",
-          }}
-        >
-          <SignIn routing="virtual" />
+      <div className="mm-auth-overlay" style={{ zIndex: 101, pointerEvents: "none" }}>
+        <div onClick={(e) => e.stopPropagation()} className="mm-auth-card">
+          <SignIn routing="virtual" appearance={clerkAppearance} />
         </div>
       </div>
     </>

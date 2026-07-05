@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { buildQuickAddTicket } from "@mealmap/shared";
 
 interface AddFoodModalProps {
@@ -18,6 +18,15 @@ export function AddFoodModal({ onClose, onSubmit, onFinish }: AddFoodModalProps)
   const [last, setLast] = useState("");
   const [done, setDone] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  // Close on Escape (unless a layer above, e.g. the sign-in overlay, consumed it).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !e.defaultPrevented) onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
 
   const pill = (active: boolean) =>
     active
@@ -47,32 +56,8 @@ export function AddFoodModal({ onClose, onSubmit, onFinish }: AddFoodModalProps)
   const stop = (e: React.MouseEvent) => e.stopPropagation();
 
   return (
-    <div
-      onClick={onClose}
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(27,23,18,0.42)",
-        zIndex: 50,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: 24,
-        animation: "mm-scrim .2s ease both",
-      }}
-    >
-      <div
-        onClick={stop}
-        style={{
-          width: "min(440px,100%)",
-          background: "#FBF7EE",
-          border: "3px solid #1B1712",
-          borderRadius: 14,
-          boxShadow: "8px 8px 0 rgba(27,23,18,0.85)",
-          overflow: "hidden",
-          animation: "mm-fadeUp .28s cubic-bezier(.2,.8,.2,1) both",
-        }}
-      >
+    <div onClick={onClose} className="mm-modal-overlay">
+      <div onClick={stop} className="mm-modal-sheet">
         <div
           style={{
             background: "#E5431E",
@@ -85,27 +70,15 @@ export function AddFoodModal({ onClose, onSubmit, onFinish }: AddFoodModalProps)
         >
           <span
             style={{
-              fontFamily: "Archivo",
-              fontWeight: 900,
+              fontFamily: "var(--font-display)",
+              fontWeight: 800,
               fontSize: 18,
               letterSpacing: "-0.3px",
             }}
           >
             Found food?
           </span>
-          <button
-            onClick={onClose}
-            style={{
-              fontFamily: "Space Mono, monospace",
-              fontSize: 17,
-              background: "none",
-              border: "none",
-              color: "#FBF7EE",
-              cursor: "pointer",
-              padding: "2px 6px",
-              lineHeight: 1,
-            }}
-          >
+          <button type="button" onClick={onClose} className="mm-modal-close">
             ✕
           </button>
         </div>
@@ -123,8 +96,8 @@ export function AddFoodModal({ onClose, onSubmit, onFinish }: AddFoodModalProps)
           >
             <span
               style={{
-                fontFamily: "Archivo",
-                fontWeight: 900,
+                fontFamily: "var(--font-display)",
+                fontWeight: 800,
                 fontSize: 26,
                 color: "#3C7A45",
                 border: "3.5px solid #3C7A45",
@@ -138,7 +111,7 @@ export function AddFoodModal({ onClose, onSubmit, onFinish }: AddFoodModalProps)
             </span>
             <p
               style={{
-                fontFamily: "Archivo",
+                fontFamily: "var(--font-sans)",
                 fontSize: 15,
                 color: "#4A423A",
                 margin: 0,
@@ -150,8 +123,8 @@ export function AddFoodModal({ onClose, onSubmit, onFinish }: AddFoodModalProps)
             <button
               onClick={onFinish}
               style={{
-                fontFamily: "Archivo",
-                fontWeight: 800,
+                fontFamily: "var(--font-sans)",
+                fontWeight: 500,
                 fontSize: 15,
                 background: "#1B1712",
                 color: "#FBF7EE",
@@ -181,7 +154,7 @@ export function AddFoodModal({ onClose, onSubmit, onFinish }: AddFoodModalProps)
             </div>
             <div
               style={{
-                fontFamily: "Space Mono, monospace",
+                fontFamily: "var(--font-mono)",
                 fontSize: 11,
                 letterSpacing: "2px",
                 color: "#8a7d6c",
@@ -195,8 +168,8 @@ export function AddFoodModal({ onClose, onSubmit, onFinish }: AddFoodModalProps)
               <>
                 <h3
                   style={{
-                    fontFamily: "Archivo",
-                    fontWeight: 900,
+                    fontFamily: "var(--font-display)",
+                    fontWeight: 500,
                     fontSize: 22,
                     margin: "0 0 14px",
                     letterSpacing: "-0.5px",
@@ -208,16 +181,8 @@ export function AddFoodModal({ onClose, onSubmit, onFinish }: AddFoodModalProps)
                   value={where}
                   onChange={(e) => setWhere(e.target.value)}
                   placeholder="e.g. Quad 1043, Library Atrium"
-                  style={{
-                    width: "100%",
-                    fontFamily: "Space Mono, monospace",
-                    fontSize: 14,
-                    background: "#FFFDF7",
-                    border: "2px solid #1B1712",
-                    borderRadius: 8,
-                    padding: 12,
-                    marginBottom: 12,
-                  }}
+                  className="mm-form-input"
+                  style={{ marginBottom: 12 }}
                 />
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                   {AREA_CHIPS.map((label) => {
@@ -226,17 +191,12 @@ export function AddFoodModal({ onClose, onSubmit, onFinish }: AddFoodModalProps)
                     return (
                       <button
                         key={label}
+                        type="button"
                         onClick={() => setWhere(label)}
+                        className="mm-chip-btn"
                         style={{
-                          fontFamily: "Space Mono, monospace",
-                          fontSize: 12,
-                          fontWeight: 700,
                           background: colors.bg,
                           color: colors.color,
-                          border: "2px solid #1B1712",
-                          borderRadius: 20,
-                          cursor: "pointer",
-                          padding: "7px 13px",
                         }}
                       >
                         {label}
@@ -251,8 +211,8 @@ export function AddFoodModal({ onClose, onSubmit, onFinish }: AddFoodModalProps)
               <>
                 <h3
                   style={{
-                    fontFamily: "Archivo",
-                    fontWeight: 900,
+                    fontFamily: "var(--font-display)",
+                    fontWeight: 500,
                     fontSize: 22,
                     margin: "0 0 14px",
                     letterSpacing: "-0.5px",
@@ -264,16 +224,8 @@ export function AddFoodModal({ onClose, onSubmit, onFinish }: AddFoodModalProps)
                   value={what}
                   onChange={(e) => setWhat(e.target.value)}
                   placeholder="e.g. Free pizza, leftover bagels"
-                  style={{
-                    width: "100%",
-                    fontFamily: "Space Mono, monospace",
-                    fontSize: 14,
-                    background: "#FFFDF7",
-                    border: "2px solid #1B1712",
-                    borderRadius: 8,
-                    padding: 12,
-                    marginBottom: 12,
-                  }}
+                  className="mm-form-input"
+                  style={{ marginBottom: 12 }}
                 />
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                   {FOOD_CHIPS.map((label) => {
@@ -282,17 +234,12 @@ export function AddFoodModal({ onClose, onSubmit, onFinish }: AddFoodModalProps)
                     return (
                       <button
                         key={label}
+                        type="button"
                         onClick={() => setWhat(label)}
+                        className="mm-chip-btn"
                         style={{
-                          fontFamily: "Space Mono, monospace",
-                          fontSize: 12,
-                          fontWeight: 700,
                           background: colors.bg,
                           color: colors.color,
-                          border: "2px solid #1B1712",
-                          borderRadius: 20,
-                          cursor: "pointer",
-                          padding: "7px 13px",
                         }}
                       >
                         {label}
@@ -307,8 +254,8 @@ export function AddFoodModal({ onClose, onSubmit, onFinish }: AddFoodModalProps)
               <>
                 <h3
                   style={{
-                    fontFamily: "Archivo",
-                    fontWeight: 900,
+                    fontFamily: "var(--font-display)",
+                    fontWeight: 500,
                     fontSize: 22,
                     margin: "0 0 14px",
                     letterSpacing: "-0.5px",
@@ -323,17 +270,12 @@ export function AddFoodModal({ onClose, onSubmit, onFinish }: AddFoodModalProps)
                     return (
                       <button
                         key={label}
+                        type="button"
                         onClick={() => setLast(label)}
+                        className="mm-chip-btn"
                         style={{
-                          fontFamily: "Space Mono, monospace",
-                          fontSize: 12,
-                          fontWeight: 700,
                           background: colors.bg,
                           color: colors.color,
-                          border: "2px solid #1B1712",
-                          borderRadius: 20,
-                          cursor: "pointer",
-                          padding: "8px 14px",
                         }}
                       >
                         {label}
@@ -347,7 +289,7 @@ export function AddFoodModal({ onClose, onSubmit, onFinish }: AddFoodModalProps)
                     border: "2px dashed #1B1712",
                     borderRadius: 8,
                     padding: "12px 14px",
-                    fontFamily: "Space Mono, monospace",
+                    fontFamily: "var(--font-mono)",
                     fontSize: 12.5,
                     color: "#4A423A",
                     lineHeight: 1.7,
@@ -360,13 +302,14 @@ export function AddFoodModal({ onClose, onSubmit, onFinish }: AddFoodModalProps)
               </>
             )}
 
-            <div style={{ display: "flex", gap: 10, marginTop: 22 }}>
+            <div className="mm-modal-actions">
               {step > 1 && (
                 <button
+                  type="button"
                   onClick={() => setStep(step - 1)}
                   style={{
-                    fontFamily: "Archivo",
-                    fontWeight: 700,
+                    fontFamily: "var(--font-sans)",
+                    fontWeight: 500,
                     fontSize: 14,
                     background: "none",
                     color: "#1B1712",
@@ -380,13 +323,14 @@ export function AddFoodModal({ onClose, onSubmit, onFinish }: AddFoodModalProps)
                 </button>
               )}
               <button
+                type="button"
                 onClick={() => void handleNext()}
                 disabled={!stepValid || submitting}
                 style={{
                   flex: 1,
-                  fontFamily: "Archivo",
-                  fontWeight: 800,
-                  fontSize: 15,
+                  fontFamily: "var(--font-sans)",
+                  fontWeight: 500,
+                  fontSize: 16,
                   background: stepValid ? "#E5431E" : "#c9beac",
                   color: "#FBF7EE",
                   border: "2.5px solid #1B1712",

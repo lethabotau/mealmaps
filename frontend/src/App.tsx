@@ -5,12 +5,15 @@ import {
   buildTicketFromExtracted,
   filterTickets,
   toTicketView,
+  type CampusArea,
   type ExtractedPost,
+  type ExtractResult,
   type Filters,
   type ReportKind,
   type Screen,
 } from "@mealmap/shared";
 import { configureAuthTokenGetter } from "./api/auth";
+import { extractPost } from "./api/client";
 import { AddFoodModal } from "./components/AddFoodModal";
 import { DashboardView } from "./components/DashboardView";
 import { DetailPanel } from "./components/DetailPanel";
@@ -24,6 +27,7 @@ import {
 } from "./hooks/useAuthGate";
 import { useTickets } from "./hooks/useTickets";
 import { REPORT_TOAST, buildFilterGroups } from "./lib/uiHelpers";
+import { layoutDashboardTickets } from "./lib/dashboardTickets";
 
 export default function App() {
   const { getToken } = useAuth();
@@ -32,15 +36,17 @@ export default function App() {
 
   const [screen, setScreen] = useState<Screen>("dashboard");
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
+  const [vantage, setVantage] = useState<CampusArea>("upper");
   const [detailId, setDetailId] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [toast, setToast] = useState("");
   const [pasteResumeToken, setPasteResumeToken] = useState(0);
+  const [pasteExtractToken, setPasteExtractToken] = useState(0);
 
   const handleReport = useCallback(
-    async (kind: ReportKind) => {
+    async (kind: ReportKind, locationText?: string) => {
       if (!detailId) return;
-      await submitReport(detailId, kind);
+      await submitReport(detailId, kind, locationText);
       setToast(REPORT_TOAST[kind] ?? "Thanks for the update!");
     },
     [detailId, submitReport],
@@ -60,7 +66,11 @@ export default function App() {
         return;
       }
       if (action.type === "report") {
-        void handleReport(action.kind);
+        void handleReport(action.kind, action.locationText);
+        return;
+      }
+      if (action.type === "paste-extract") {
+        setPasteExtractToken((token) => token + 1);
         return;
       }
       if (action.type === "paste-submit") {
@@ -77,13 +87,19 @@ export default function App() {
   }, [getToken]);
 
   const filtered = useMemo(
-    () => filterTickets(tickets, filters, overrides),
-    [tickets, filters, overrides],
+    () => filterTickets(tickets, filters, overrides, vantage),
+    [tickets, filters, overrides, vantage],
   );
 
   const views = useMemo(
-    () => filtered.map((ticket) => toTicketView(ticket, overrides, confirm)),
-    [filtered, overrides, confirm],
+    () =>
+      filtered.map((ticket) => toTicketView(ticket, overrides, confirm, vantage)),
+    [filtered, overrides, confirm, vantage],
+  );
+
+  const { railPreview, gridTickets } = useMemo(
+    () => layoutDashboardTickets(views),
+    [views],
   );
 
   const rankedTickets = useMemo(
@@ -118,7 +134,7 @@ export default function App() {
     return (
       <div className="mm-page mm-container" style={{ paddingTop: 80 }}>
         <h2>Could not reach the MealMap backend</h2>
-        <p style={{ fontFamily: "Space Mono, monospace", color: "#8a7d6c" }}>
+        <p style={{ fontFamily: "var(--font-mono)", color: "#8a7d6c" }}>
           {error}
         </p>
         <p>
@@ -133,25 +149,20 @@ export default function App() {
     <div className="mm-page">
       <AuthSignInOverlay open={signInOpen} onDismiss={closeSignIn} />
       <div className="mm-container">
-        <Header
-          screen={screen}
-          onGoDash={() => setScreen("dashboard")}
-          onGoResults={() => setScreen("results")}
-          onGoPaste={() => setScreen("paste")}
-          onOpenAdd={openAddModal}
-        />
+        <Header onGoDash={() => setScreen("dashboard")} />
 
         {screen === "dashboard" && (
           <DashboardView
+            vantage={vantage}
+            onVantageChange={setVantage}
             filterGroups={filterGroups}
-            bestTickets={views.slice(0, 3)}
+            railPreview={railPreview}
+            gridTickets={gridTickets}
             resultCount={views.length}
             onOpenAdd={openAddModal}
             onGoPaste={() => setScreen("paste")}
             onGoResults={() => setScreen("results")}
-            onClearFilters={() =>
-              setFilters({ budget: "u10", time: "today", area: "anywhere" })
-            }
+            onClearFilters={() => setFilters(DEFAULT_FILTERS)}
             onSelectTicket={(id) => {
               setDetailId(id);
               setToast("");
@@ -161,13 +172,13 @@ export default function App() {
 
         {screen === "results" && (
           <RankedView
+            vantage={vantage}
+            onVantageChange={setVantage}
             filterGroups={filterGroups}
             rankedTickets={rankedTickets}
             resultCount={views.length}
             onGoDash={() => setScreen("dashboard")}
-            onClearFilters={() =>
-              setFilters({ budget: "u10", time: "today", area: "anywhere" })
-            }
+            onClearFilters={() => setFilters(DEFAULT_FILTERS)}
             onOpenAdd={openAddModal}
             onSelectTicket={(id) => {
               setDetailId(id);
@@ -179,11 +190,22 @@ export default function App() {
         {screen === "paste" && (
           <PasteView
             onGoDash={() => setScreen("dashboard")}
+            resumeExtractToken={pasteExtractToken}
             resumeSubmitToken={pasteResumeToken}
+            onExtract={async (text) => {
+              let result: ExtractResult | null = null;
+              await gate({ type: "paste-extract" }, async () => {
+                result = await extractPost(text);
+              });
+              return result;
+            }}
             onPostTicket={async (extracted) => {
-              await gate({ type: "paste-submit" }, () =>
-                handlePostFromPaste(extracted),
-              );
+              let posted = false;
+              await gate({ type: "paste-submit" }, async () => {
+                await handlePostFromPaste(extracted);
+                posted = true;
+              });
+              return posted;
             }}
           />
         )}
@@ -194,8 +216,10 @@ export default function App() {
           ticket={detailTicket}
           toast={toast}
           onClose={() => setDetailId(null)}
-          onReport={(kind) =>
-            gate({ type: "report", kind }, () => void handleReport(kind))
+          onReport={(kind, locationText) =>
+            gate({ type: "report", kind, locationText }, () =>
+              void handleReport(kind, locationText),
+            )
           }
         />
       )}

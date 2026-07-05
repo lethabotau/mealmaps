@@ -2,16 +2,33 @@ import type {
   CampusArea,
   CreateTicketInput,
   ExtractedPost,
+  ExtractField,
+  ExtractResult,
+  FieldConfidence,
   Filters,
+  LegacyCampusArea,
+  TimeNormalized,
   Ticket,
   TicketConfirmMeta,
   TicketOverrides,
   TicketStatus,
   TicketView,
   TimeWindow,
+  UserIdentity,
   WorthLevel,
 } from "./types.js";
 import { SEED_AUTHORS } from "./seedUsers.js";
+import { areaVantage, computeWalk, coordsFor } from "./campus.js";
+import { costDisplayFor, isFreeCost } from "./price.js";
+
+/**
+ * Fixed identity for auto-ingested tickets. Shared so backend can stamp it and
+ * frontend can detect auto-origin without a magic-string drift.
+ */
+export const SYSTEM_INGEST_USER: UserIdentity = {
+  userId: "system-ingest",
+  displayName: "MealMap Auto",
+};
 
 export const WORTH_COLORS: Record<WorthLevel, string> = {
   high: "#3C7A45",
@@ -38,14 +55,110 @@ export const STATUS_LABELS: Record<TicketStatus, string> = {
 };
 
 export const DEFAULT_FILTERS: Filters = {
-  budget: "u10",
-  time: "now",
-  area: "anywhere",
+  freeOnly: false,
+  time: "today",
 };
+
+/** Map stored ticket area (incl. legacy quad/library) to upper/lower show zones. */
+export function normalizeArea(
+  area: CampusArea | LegacyCampusArea,
+): CampusArea {
+  if (area === "lower") return "lower";
+  return "upper";
+}
+
+/** Stored on auto tickets when the venue is unknown but on-campus. */
+export const UNCONFIRMED_WHERE = "location unconfirmed";
+
+/** Display line for off-campus auto tickets. */
+export const OFF_CAMPUS_WHERE = "off-campus event";
+
+/** Actionable where-line for on-campus tickets awaiting a crowd pin. */
+export const PINNABLE_WHERE = "📍 Been here? Pin the location";
+
+export function isOnCampus(ticket: Ticket): boolean {
+  return ticket.onCampus !== false;
+}
+
+/** Off-campus unverified tickets rank below on-campus within the same band. */
+export function onCampusRank(ticket: Ticket): number {
+  return isOnCampus(ticket) ? 0 : 1;
+}
+
+export function isPinnableTicket(ticket: Ticket): boolean {
+  return isOnCampus(ticket) && ticket.coords == null;
+}
+
+export function whereDisplayFor(ticket: Ticket): string {
+  if (!isOnCampus(ticket)) return OFF_CAMPUS_WHERE;
+  if (ticket.coords != null) return ticket.where;
+  if (
+    ticket.where === UNCONFIRMED_WHERE ||
+    ticket.where === PINNABLE_WHERE
+  ) {
+    return PINNABLE_WHERE;
+  }
+  return ticket.where;
+}
+
+/** Pick WHEN vs ENDS label from the stored time line prefix. */
+export function parseTimeLine(
+  raw: string,
+  gone: boolean,
+): { label: "WHEN" | "ENDS"; text: string; color: string } {
+  if (gone) {
+    return { label: "ENDS", text: "gone", color: STATUS_COLORS.gone };
+  }
+  const lower = raw.toLowerCase();
+  if (lower.startsWith("starts ")) {
+    return { label: "WHEN", text: raw.slice(7), color: "#E5431E" };
+  }
+  if (lower.startsWith("ends ")) {
+    return { label: "ENDS", text: raw.slice(5), color: "#E5431E" };
+  }
+  return { label: "ENDS", text: raw, color: "#E5431E" };
+}
+
+export function walkStubLabelFor(
+  showWalk: boolean,
+  walk: number | null,
+): string {
+  if (!showWalk) return "OFF CAMPUS";
+  return walk === null ? "LOCATION?" : "MIN WALK";
+}
+
+export function walkDetailTextFor(
+  showWalk: boolean,
+  walk: number | null,
+  isPinnable: boolean,
+): string {
+  if (!showWalk) return "off-campus — no walk";
+  if (walk === null) {
+    return isPinnable
+      ? "walk unknown — pin the location"
+      : "walk unknown — location unconfirmed";
+  }
+  return `${walk} min`;
+}
 
 export function worthRank(w: WorthLevel): number {
   if (w === "high") return 0;
   if (w === "maybe") return 1;
+  return 2;
+}
+
+/**
+ * Trust tier for ranking: confirmed (or absent = human) sorts above unverified
+ * (auto-ingested) tickets.
+ */
+export function trustRank(ticket: Ticket): number {
+  return ticket.trust === "unverified" ? 1 : 0;
+}
+
+/** Time proximity for ranking: sooner food sorts first (now < hour < today). */
+export function timeRank(t: TimeWindow): number {
+  if (t === "now") return 0;
+  if (t === "hour") return 1;
   return 2;
 }
 
@@ -60,11 +173,10 @@ export function filterTickets(
   tickets: Ticket[],
   filters: Filters,
   overrides: TicketOverrides = {},
+  vantage: CampusArea = "upper",
 ): Ticket[] {
   const list = tickets.filter((ticket) => {
-    if (filters.budget === "free" && ticket.cost !== 0) return false;
-    if (filters.budget === "u5" && ticket.cost >= 5) return false;
-    if (filters.budget === "u10" && ticket.cost >= 10) return false;
+    if (filters.freeOnly && !isFreeCost(ticket.cost)) return false;
     if (filters.time === "now" && ticket.time !== "now") return false;
     if (
       filters.time === "hour" &&
@@ -72,11 +184,19 @@ export function filterTickets(
     ) {
       return false;
     }
-    if (filters.area !== "anywhere" && ticket.area !== filters.area) return false;
     return true;
   });
 
+  // Walk is relative to the user's vantage ("I'm near:").
+  const vantageCoords = areaVantage(vantage);
+  // Unknown-walk (unresolved coords) ranks below any known walk (clamp max 25).
+  const walkKey = (ticket: Ticket) =>
+    computeWalk(vantageCoords, ticket.coords) ?? 26;
+
   return list.sort((a, b) => {
+    const trustDiff = trustRank(a) - trustRank(b);
+    if (trustDiff !== 0) return trustDiff;
+
     const aGone = effectiveStatus(a, overrides) === "gone" ? 1 : 0;
     const bGone = effectiveStatus(b, overrides) === "gone" ? 1 : 0;
     if (aGone !== bGone) return aGone - bGone;
@@ -84,7 +204,13 @@ export function filterTickets(
     const worthDiff = worthRank(a.worth) - worthRank(b.worth);
     if (worthDiff !== 0) return worthDiff;
 
-    return a.walk - b.walk;
+    const timeDiff = timeRank(a.time) - timeRank(b.time);
+    if (timeDiff !== 0) return timeDiff;
+
+    const campusDiff = onCampusRank(a) - onCampusRank(b);
+    if (campusDiff !== 0) return campusDiff;
+
+    return walkKey(a) - walkKey(b);
   });
 }
 
@@ -92,18 +218,36 @@ export function toTicketView(
   ticket: Ticket,
   overrides: TicketOverrides = {},
   confirm: Record<string, TicketConfirmMeta> = {},
+  vantage: CampusArea = "upper",
 ): TicketView {
   const status = effectiveStatus(ticket, overrides);
   const gone = status === "gone";
   const meta = confirm[ticket.id];
+  const timeLine = parseTimeLine(ticket.ends, gone);
+  const showWalk = isOnCampus(ticket);
+  const isPinnable = isPinnableTicket(ticket);
+  const whereDisplay = whereDisplayFor(ticket);
+  const walk = showWalk
+    ? computeWalk(areaVantage(vantage), ticket.coords)
+    : null;
+  const cost = costDisplayFor(ticket.cost, ticket.sourcePrice);
 
   return {
     ...ticket,
+    walk,
+    showWalk,
+    isPinnable,
+    whereDisplay,
+    timeLabel: timeLine.label,
+    timeText: timeLine.text,
+    timeColor: timeLine.color,
+    walkStubLabel: walkStubLabelFor(showWalk, walk),
+    walkDetailText: walkDetailTextFor(showWalk, walk, isPinnable),
     effectiveStatus: status,
     ends: gone ? "gone" : ticket.ends,
-    endsColor: gone ? STATUS_COLORS.gone : "#E5431E",
-    costLabel: ticket.cost === 0 ? "FREE" : `$${ticket.cost}`,
-    costColor: ticket.cost === 0 ? "#E5431E" : "#1B1712",
+    endsColor: timeLine.color,
+    costLabel: cost.label,
+    costColor: cost.color,
     worthLabel: WORTH_LABELS[ticket.worth],
     worthColor: WORTH_COLORS[ticket.worth],
     statusLabel: STATUS_LABELS[status],
@@ -115,9 +259,8 @@ export function toTicketView(
 
 export function inferAreaFromWhere(where: string): CampusArea {
   const lower = where.toLowerCase();
-  if (lower.includes("library")) return "library";
   if (lower.includes("lower")) return "lower";
-  return "quad";
+  return "upper";
 }
 
 export function buildQuickAddTicket(input: {
@@ -131,7 +274,6 @@ export function buildQuickAddTicket(input: {
     cost: 0,
     area: inferAreaFromWhere(input.where),
     time: "now",
-    walk: 2 + Math.floor(Math.random() * 8),
     where: input.where || "On campus",
     ends: input.last || "until gone",
     access: "Open to all",
@@ -144,9 +286,11 @@ export function buildQuickAddTicket(input: {
 
 export function buildTicketFromExtracted(extracted: ExtractedPost): CreateTicketInput {
   const cost =
-    extracted.cost === "Free"
-      ? 0
-      : parseInt(extracted.cost.replace(/\D/g, ""), 10) || 0;
+    typeof extracted.costCents === "number"
+      ? Math.round(extracted.costCents / 100)
+      : extracted.cost === "Free"
+        ? 0
+        : parseInt(extracted.cost.replace(/\D/g, ""), 10) || 0;
 
   return {
     name:
@@ -155,9 +299,8 @@ export function buildTicketFromExtracted(extracted: ExtractedPost): CreateTicket
         : "Event food — from post",
     source: "Pasted post",
     cost,
-    area: "quad",
-    time: "now",
-    walk: 2 + Math.floor(Math.random() * 8),
+    area: "upper",
+    time: extracted.timeWindow ?? "now",
     where: extracted.location !== "—" ? extracted.location : "See post",
     ends:
       extracted.time !== "—"
@@ -167,6 +310,101 @@ export function buildTicketFromExtracted(extracted: ExtractedPost): CreateTicket
     worth: extracted.confidence >= 80 ? "high" : "maybe",
     status: "available",
     blurb: `Auto-read from a pasted event post. Confidence ${extracted.confidence}%. Double-check details when you arrive.`,
+  };
+}
+
+/** Canonical order of extracted fields. */
+export const EXTRACT_FIELDS: ExtractField[] = [
+  "food",
+  "cost",
+  "time",
+  "location",
+  "access",
+];
+
+/** Display labels for extracted fields. */
+export const EXTRACT_FIELD_LABELS: Record<ExtractField, string> = {
+  food: "FOOD",
+  cost: "COST",
+  time: "TIME",
+  location: "LOCATION",
+  access: "ACCESS",
+};
+
+const CONFIDENCE_WEIGHT: Record<FieldConfidence, number> = {
+  high: 1,
+  medium: 0.6,
+  low: 0.3,
+};
+
+const HOUR_MS = 60 * 60 * 1000;
+
+/**
+ * Buckets normalized timing into a {@link TimeWindow} for ranking/filtering.
+ * `null` (regex fallback / no stated time) defaults to "today".
+ */
+export function timeWindowFromNormalized(tn: TimeNormalized | null): TimeWindow {
+  if (!tn) return "today";
+  if (tn.type === "now") return "now";
+  if (tn.start) {
+    const startMs = Date.parse(tn.start);
+    if (!Number.isNaN(startMs)) {
+      const diff = startMs - Date.now();
+      if (diff <= 0) return "now";
+      if (diff <= HOUR_MS) return "hour";
+    }
+  }
+  return "today";
+}
+
+/**
+ * Bridges an {@link ExtractResult} (LLM or regex) into the legacy
+ * {@link ExtractedPost} display shape so `buildTicketFromExtracted` and the
+ * existing ticket-print UI keep working unchanged.
+ */
+export function extractResultToPost(result: ExtractResult): ExtractedPost {
+  const { extraction, confidence } = result;
+  const sentinel = (value: string | null) =>
+    value && value.trim() ? value : "—";
+
+  const costColor =
+    extraction.cost && /free/i.test(extraction.cost) ? "#E5431E" : "#1B1712";
+
+  const rawScore = EXTRACT_FIELDS.reduce((sum, field) => {
+    if (extraction[field] === null) return sum;
+    return sum + CONFIDENCE_WEIGHT[confidence[field] ?? "low"];
+  }, 0);
+  const confidenceScore = Math.round((rawScore / EXTRACT_FIELDS.length) * 100);
+
+  let confLabel: ExtractedPost["confLabel"] = "LOW";
+  let confColor = STATUS_COLORS.gone;
+  if (confidenceScore >= 80) {
+    confLabel = "HIGH";
+    confColor = STATUS_COLORS.available;
+  } else if (confidenceScore >= 50) {
+    confLabel = "MEDIUM";
+    confColor = STATUS_COLORS.maybe;
+  }
+
+  const missingLabels = result.missing.map(
+    (field) => EXTRACT_FIELD_LABELS[field] ?? field,
+  );
+
+  return {
+    food: sentinel(extraction.food),
+    cost: sentinel(extraction.cost),
+    costColor,
+    time: sentinel(extraction.time),
+    location: sentinel(extraction.location),
+    access: sentinel(extraction.access),
+    confidence: confidenceScore,
+    confLabel,
+    confColor,
+    missing: missingLabels,
+    missingText: missingLabels.join(", "),
+    hasMissing: missingLabels.length > 0,
+    timeWindow: timeWindowFromNormalized(result.time_normalized),
+    costCents: result.cost_cents,
   };
 }
 
@@ -288,10 +526,10 @@ export const SEED_TICKETS: Ticket[] = [
     name: "Free Pizza — Sponsor Night",
     source: "CS Club",
     cost: 0,
-    area: "quad",
+    area: "upper",
     time: "now",
-    walk: 6,
-    where: "Quad 1043",
+    where: "Quadrangle",
+    coords: coordsFor("Quadrangle"),
     ends: "ends 2:00pm",
     access: "Open to attendees",
     confirmed: "8 min ago",
@@ -307,10 +545,10 @@ export const SEED_TICKETS: Ticket[] = [
     name: "Bagels & Coffee — Dept Mixer",
     source: "Physics Dept",
     cost: 0,
-    area: "library",
+    area: "upper",
     time: "now",
-    walk: 3,
-    where: "Library Atrium",
+    where: "Main Library",
+    coords: coordsFor("Main Library"),
     ends: "ends 11:30am",
     access: "Open to all",
     confirmed: "2 min ago",
@@ -326,10 +564,10 @@ export const SEED_TICKETS: Ticket[] = [
     name: "Free Snacks — Study Lounge",
     source: "Library Services",
     cost: 0,
-    area: "library",
+    area: "upper",
     time: "now",
-    walk: 4,
-    where: "Library 3F",
+    where: "Law Library",
+    coords: coordsFor("Law Library"),
     ends: "restocks hourly",
     access: "Open to all",
     confirmed: "12 min ago",
@@ -347,8 +585,8 @@ export const SEED_TICKETS: Ticket[] = [
     cost: 2,
     area: "lower",
     time: "now",
-    walk: 11,
-    where: "Lower Commons",
+    where: "Lower Campus Food Court",
+    coords: coordsFor("Lower Campus Food Court"),
     ends: "until sold out",
     access: "Cash only",
     confirmed: "20 min ago",
@@ -364,10 +602,10 @@ export const SEED_TICKETS: Ticket[] = [
     name: "Leftover Sandwiches — Career Fair",
     source: "Career Center",
     cost: 0,
-    area: "quad",
+    area: "upper",
     time: "now",
-    walk: 8,
-    where: "Union Hall 2F",
+    where: "Mathews Building",
+    coords: coordsFor("Mathews Building"),
     ends: "ends 1:00pm",
     access: "Open to all",
     confirmed: "35 min ago",
@@ -385,8 +623,8 @@ export const SEED_TICKETS: Ticket[] = [
     cost: 5,
     area: "lower",
     time: "today",
-    walk: 14,
-    where: "International House",
+    where: "Roundhouse",
+    coords: coordsFor("Roundhouse"),
     ends: "starts 6:00pm",
     access: "Ticketed at door",
     confirmed: "1 hr ago",
@@ -402,10 +640,10 @@ export const SEED_TICKETS: Ticket[] = [
     name: "Free Donuts — Frat Tabling",
     source: "Sigma Chi",
     cost: 0,
-    area: "quad",
+    area: "upper",
     time: "now",
-    walk: 5,
-    where: "Quad Lawn",
+    where: "Village Green",
+    coords: coordsFor("Village Green"),
     ends: "gone",
     access: "Open to all",
     confirmed: "1 min ago",
