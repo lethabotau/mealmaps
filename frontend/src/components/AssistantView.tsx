@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { TicketView } from "@mealmap/shared";
 import { useAssistant } from "../hooks/useAssistant";
 import type { PendingAction } from "../hooks/useAuthGate";
+import { VoicePoweredOrb } from "./ui/voice-powered-orb";
 
 interface AssistantViewProps {
   gate: (action: PendingAction, run: () => void | Promise<void>) => void;
@@ -34,8 +35,6 @@ export function AssistantView({
     stopListening,
   } = useAssistant();
   const [typed, setTyped] = useState("");
-
-  const orbClass = `mm-orb${status === "idle" ? "" : ` is-${status}`}`;
 
   const handleOrb = () => {
     if (status === "listening") {
@@ -95,12 +94,17 @@ export function AssistantView({
 
       <button
         type="button"
-        className={orbClass}
+        className={`mm-orb-shell${status === "listening" ? " is-listening" : ""}`}
         onClick={handleOrb}
         aria-label={
           status === "listening" ? "Stop listening" : "Start listening"
         }
-      />
+      >
+        <VoicePoweredOrb
+          className="mm-orb-canvas"
+          enableVoiceControl={status === "listening"}
+        />
+      </button>
 
       <p
         style={{
