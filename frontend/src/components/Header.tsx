@@ -7,17 +7,7 @@ interface HeaderProps {
 
 export function Header({ onGoDash }: HeaderProps) {
   return (
-    <header
-      style={{
-        display: "flex",
-        flexWrap: "wrap",
-        alignItems: "center",
-        justifyContent: "space-between",
-        gap: "16px 24px",
-        borderBottom: "3px solid #1B1712",
-        paddingBottom: 16,
-      }}
-    >
+    <header className="mm-header">
       <div
         onClick={onGoDash}
         style={{
@@ -25,12 +15,14 @@ export function Header({ onGoDash }: HeaderProps) {
           alignItems: "center",
           gap: 12,
           cursor: "pointer",
+          minWidth: 0,
         }}
       >
         <div
           style={{
             width: 42,
             height: 42,
+            flexShrink: 0,
             background: "#E5431E",
             border: "2.5px solid #1B1712",
             borderRadius: "9px 7px 9px 7px",
@@ -41,34 +33,16 @@ export function Header({ onGoDash }: HeaderProps) {
             transform: "rotate(-3deg)",
           }}
         >
-          <span
-            style={{
-              fontFamily: "Archivo",
-              fontWeight: 900,
-              fontSize: 24,
-              color: "#FBF7EE",
-              lineHeight: 1,
-            }}
-          >
-            M
-          </span>
+          <span className="mm-logo-mark">M</span>
         </div>
-        <div>
-          <span
-            style={{
-              fontFamily: "Archivo",
-              fontWeight: 900,
-              fontSize: 27,
-              letterSpacing: "-1px",
-              lineHeight: 1,
-            }}
-          >
+        <div style={{ minWidth: 0 }}>
+          <span className="mm-logo-word">
             Meal<span style={{ color: "#E5431E" }}>Map</span>
           </span>
         </div>
       </div>
 
-      <div style={{ display: "flex", alignItems: "center" }}>
+      <div style={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
         <SignedOut>
           <SignInButton mode="modal">
             <button type="button" className="mm-header-auth-btn">

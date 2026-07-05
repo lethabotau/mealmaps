@@ -91,31 +91,8 @@ export function AuthSignInOverlay({ open, onDismiss }: AuthSignInOverlayProps) {
           zIndex: 100,
         }}
       />
-      <div
-        style={{
-          position: "fixed",
-          inset: 0,
-          zIndex: 101,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: 24,
-          pointerEvents: "none",
-        }}
-      >
-        <div
-          onClick={(e) => e.stopPropagation()}
-          style={{
-            pointerEvents: "auto",
-            width: "min(420px, 100%)",
-            maxHeight: "90vh",
-            overflow: "auto",
-            background: "#FBF7EE",
-            border: "3px solid #1B1712",
-            borderRadius: 12,
-            boxShadow: "8px 8px 0 rgba(27,23,18,0.85)",
-          }}
-        >
+      <div className="mm-auth-overlay" style={{ zIndex: 101, pointerEvents: "none" }}>
+        <div onClick={(e) => e.stopPropagation()} className="mm-auth-card">
           <SignIn routing="virtual" appearance={clerkAppearance} />
         </div>
       </div>

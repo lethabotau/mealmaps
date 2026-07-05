@@ -105,20 +105,10 @@ export function PasteView({
           ← back to dashboard
         </button>
       </div>
-      <h1
-        style={{
-          fontFamily: "Archivo",
-          fontWeight: 900,
-          fontSize: "clamp(30px,4vw,44px)",
-          letterSpacing: "-1.2px",
-          margin: "8px 0 6px",
-        }}
-      >
-        Paste an event post
-      </h1>
+      <h1 className="mm-page-title">Paste an event post</h1>
       <p
         style={{
-          fontFamily: "Space Mono, monospace",
+          fontFamily: "var(--font-mono)",
           fontSize: 12.5,
           color: "#8a7d6c",
           margin: "0 0 24px",
@@ -129,18 +119,11 @@ export function PasteView({
         it and print a ticket.
       </p>
 
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
-          gap: 22,
-          alignItems: "start",
-        }}
-      >
+      <div className="mm-paste-layout">
         <div className="mm-panel" style={{ padding: 18, boxShadow: "5px 5px 0 rgba(27,23,18,0.85)" }}>
           <div
             style={{
-              fontFamily: "Space Mono, monospace",
+              fontFamily: "var(--font-mono)",
               fontSize: 11,
               letterSpacing: "2px",
               color: "#8a7d6c",
@@ -157,37 +140,16 @@ export function PasteView({
               setPosted(false);
               setError(null);
             }}
-            style={{
-              width: "100%",
-              minHeight: 220,
-              resize: "vertical",
-              fontFamily: "Space Mono, monospace",
-              fontSize: 13,
-              lineHeight: 1.6,
-              color: "#1B1712",
-              background: "#FFFDF7",
-              border: "2px solid #1B1712",
-              borderRadius: 8,
-              padding: 14,
-            }}
+            className="mm-form-textarea"
           />
           <button
+            type="button"
             onClick={() => void runExtract()}
             disabled={extracting || !pasteText.trim()}
+            className="mm-paste-read-btn"
             style={{
-              marginTop: 14,
-              width: "100%",
-              fontFamily: "Archivo",
-              fontWeight: 800,
-              fontSize: 15,
-              background: "#1B1712",
-              color: "#FBF7EE",
-              border: "2.5px solid #1B1712",
-              borderRadius: 9,
-              boxShadow: "4px 4px 0 rgba(27,23,18,0.5)",
-              cursor: extracting ? "wait" : "pointer",
-              padding: 13,
               opacity: extracting || !pasteText.trim() ? 0.7 : 1,
+              cursor: extracting ? "wait" : "pointer",
             }}
           >
             {extracting ? "READING…" : "READ THIS POST →"}
@@ -196,7 +158,7 @@ export function PasteView({
             <div
               style={{
                 marginTop: 12,
-                fontFamily: "Space Mono, monospace",
+                fontFamily: "var(--font-mono)",
                 fontSize: 12,
                 color: "#C0341D",
               }}
@@ -225,7 +187,7 @@ export function PasteView({
             >
               <span
                 style={{
-                  fontFamily: "Space Mono, monospace",
+                  fontFamily: "var(--font-mono)",
                   fontSize: 12,
                   letterSpacing: "1.5px",
                   color: "#a89a83",
@@ -235,8 +197,8 @@ export function PasteView({
               </span>
               <span
                 style={{
-                  fontFamily: "Archivo",
-                  fontWeight: 700,
+                  fontFamily: "var(--font-sans)",
+                  fontWeight: 500,
                   fontSize: 16,
                   color: "#8a7d6c",
                 }}
@@ -261,7 +223,7 @@ export function PasteView({
                   display: "flex",
                   justifyContent: "space-between",
                   alignItems: "center",
-                  fontFamily: "Space Mono, monospace",
+                  fontFamily: "var(--font-mono)",
                   fontSize: 11,
                   letterSpacing: "1.5px",
                 }}
@@ -270,7 +232,7 @@ export function PasteView({
                 <span
                   style={{
                     color: result.source === "llm" ? "#8fd19e" : "#e0b062",
-                    fontWeight: 700,
+                    fontWeight: 500,
                   }}
                 >
                   {result.source === "llm" ? "AI READ" : "KEYWORD READ"}
@@ -281,8 +243,8 @@ export function PasteView({
                   <div style={{ display: "flex" }}>
                     <span
                       style={{
-                        fontFamily: "Archivo",
-                        fontWeight: 900,
+                        fontFamily: "var(--font-display)",
+                        fontWeight: 800,
                         fontSize: 15,
                         letterSpacing: "0.5px",
                         color: "#E5431E",
@@ -307,11 +269,11 @@ export function PasteView({
                   >
                     <div
                       style={{
-                        fontFamily: "Space Mono, monospace",
+                        fontFamily: "var(--font-mono)",
                         fontSize: 11,
                         letterSpacing: "1px",
                         color: "#C0341D",
-                        fontWeight: 700,
+                        fontWeight: 500,
                         marginBottom: 4,
                       }}
                     >
@@ -319,7 +281,7 @@ export function PasteView({
                     </div>
                     <div
                       style={{
-                        fontFamily: "Space Mono, monospace",
+                        fontFamily: "var(--font-mono)",
                         fontSize: 12,
                         color: "#8a3a2e",
                       }}
@@ -335,7 +297,7 @@ export function PasteView({
                     gridTemplateColumns: "auto 1fr auto",
                     gap: "9px 14px",
                     alignItems: "center",
-                    fontFamily: "Space Mono, monospace",
+                    fontFamily: "var(--font-mono)",
                     fontSize: 13,
                   }}
                 >
@@ -353,7 +315,7 @@ export function PasteView({
                         </span>
                         <span
                           style={{
-                            fontWeight: value ? 700 : 400,
+                            fontWeight: value ? 500 : 400,
                             color: value ? valueColor : "#b3a692",
                           }}
                         >
@@ -363,10 +325,10 @@ export function PasteView({
                           <span
                             style={{
                               justifySelf: "end",
-                              fontFamily: "Space Mono, monospace",
+                              fontFamily: "var(--font-mono)",
                               fontSize: 9.5,
                               letterSpacing: "0.5px",
-                              fontWeight: 700,
+                              fontWeight: 500,
                               color: CONF_COLOR[result.confidence[field]],
                               border: `1.5px solid ${CONF_COLOR[result.confidence[field]]}`,
                               borderRadius: 5,
@@ -394,18 +356,18 @@ export function PasteView({
                   >
                     <span
                       style={{
-                        fontFamily: "Space Mono, monospace",
+                        fontFamily: "var(--font-mono)",
                         fontSize: 11,
                         letterSpacing: "1px",
                         color: "#B7791F",
-                        fontWeight: 700,
+                        fontWeight: 500,
                       }}
                     >
                       MISSING →{" "}
                     </span>
                     <span
                       style={{
-                        fontFamily: "Space Mono, monospace",
+                        fontFamily: "var(--font-mono)",
                         fontSize: 12,
                         color: "#8a6a1f",
                       }}
@@ -422,8 +384,8 @@ export function PasteView({
                   <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
                     <span
                       style={{
-                        fontFamily: "Archivo",
-                        fontWeight: 900,
+                        fontFamily: "var(--font-display)",
+                        fontWeight: 800,
                         fontSize: 20,
                         color: "#3C7A45",
                         border: "3px solid #3C7A45",
@@ -436,7 +398,7 @@ export function PasteView({
                     </span>
                     <span
                       style={{
-                        fontFamily: "Space Mono, monospace",
+                        fontFamily: "var(--font-mono)",
                         fontSize: 12,
                         color: "#8a7d6c",
                       }}
@@ -450,8 +412,8 @@ export function PasteView({
                     disabled={posting}
                     style={{
                       width: "100%",
-                      fontFamily: "Archivo",
-                      fontWeight: 900,
+                      fontFamily: "var(--font-sans)",
+                      fontWeight: 500,
                       fontSize: 16,
                       background: "#E5431E",
                       color: "#FBF7EE",
@@ -486,7 +448,7 @@ export function PasteView({
             >
               <span
                 style={{
-                  fontFamily: "Space Mono, monospace",
+                  fontFamily: "var(--font-mono)",
                   fontSize: 12,
                   letterSpacing: "1.5px",
                   color: "#a89a83",
@@ -496,8 +458,8 @@ export function PasteView({
               </span>
               <span
                 style={{
-                  fontFamily: "Archivo",
-                  fontWeight: 700,
+                  fontFamily: "var(--font-sans)",
+                  fontWeight: 500,
                   fontSize: 16,
                   color: "#a89a83",
                 }}

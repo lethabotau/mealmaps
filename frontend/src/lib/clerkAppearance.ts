@@ -1,4 +1,10 @@
 /** Clerk theme aligned with MealMap diner tokens (see styles/global.css). */
+import {
+  FONT_DISPLAY_FACE,
+  FONT_MONO_FACE,
+  FONT_SANS_FACE,
+} from "../styles/fonts.js";
+
 export const clerkAppearance = {
   variables: {
     colorPrimary: "#E5431E",
@@ -12,12 +18,12 @@ export const clerkAppearance = {
     colorTextSecondary: "#8A7D6C",
     colorNeutral: "#1B1712",
     borderRadius: "8px",
-    fontFamily: '"Archivo", sans-serif',
-    fontFamilyButtons: '"Archivo", sans-serif',
+    fontFamily: FONT_SANS_FACE,
+    fontFamilyButtons: FONT_SANS_FACE,
   },
   elements: {
     rootBox: {
-      fontFamily: '"Archivo", sans-serif',
+      fontFamily: FONT_SANS_FACE,
     },
     card: {
       backgroundColor: "#FBF7EE",
@@ -25,12 +31,12 @@ export const clerkAppearance = {
       boxShadow: "8px 8px 0 rgba(27,23,18,0.85)",
     },
     headerTitle: {
-      fontFamily: '"Archivo", sans-serif',
-      fontWeight: 900,
+      fontFamily: FONT_DISPLAY_FACE,
+      fontWeight: 800,
       color: "#1B1712",
     },
     headerSubtitle: {
-      fontFamily: '"Space Mono", monospace',
+      fontFamily: FONT_MONO_FACE,
       fontSize: "12px",
       color: "#8A7D6C",
     },
@@ -38,11 +44,11 @@ export const clerkAppearance = {
       border: "2px solid #1B1712",
       backgroundColor: "#FBF7EE",
       color: "#1B1712",
-      fontFamily: '"Archivo", sans-serif',
-      fontWeight: 700,
+      fontFamily: FONT_SANS_FACE,
+      fontWeight: 500,
     },
     formFieldLabel: {
-      fontFamily: '"Space Mono", monospace',
+      fontFamily: FONT_MONO_FACE,
       fontSize: "11px",
       letterSpacing: "1px",
       color: "#8A7D6C",
@@ -52,7 +58,7 @@ export const clerkAppearance = {
       borderRadius: "8px",
       backgroundColor: "#FBF7EE",
       color: "#1B1712",
-      fontFamily: '"Space Mono", monospace',
+      fontFamily: FONT_MONO_FACE,
       fontSize: "13px",
     },
     formButtonPrimary: {
@@ -60,8 +66,8 @@ export const clerkAppearance = {
       border: "2.5px solid #1B1712",
       borderRadius: "8px 6px 8px 6px",
       boxShadow: "3px 3px 0 rgba(27,23,18,0.85)",
-      fontFamily: '"Archivo", sans-serif',
-      fontWeight: 800,
+      fontFamily: FONT_SANS_FACE,
+      fontWeight: 500,
       fontSize: "13px",
       textTransform: "none",
       "&:hover": {
@@ -70,7 +76,7 @@ export const clerkAppearance = {
     },
     footerActionLink: {
       color: "#E5431E",
-      fontFamily: '"Space Mono", monospace',
+      fontFamily: FONT_MONO_FACE,
       fontSize: "12px",
     },
     identityPreviewEditButton: {
@@ -80,7 +86,7 @@ export const clerkAppearance = {
       backgroundColor: "#D8CCB4",
     },
     dividerText: {
-      fontFamily: '"Space Mono", monospace',
+      fontFamily: FONT_MONO_FACE,
       fontSize: "11px",
       color: "#8A7D6C",
     },
@@ -117,12 +123,12 @@ export const clerkAppearance = {
       boxShadow: "4px 4px 0 rgba(27,23,18,0.85)",
     },
     userButtonPopoverActionButton: {
-      fontFamily: '"Space Mono", monospace',
+      fontFamily: FONT_MONO_FACE,
       fontSize: "12px",
       color: "#1B1712",
     },
     userButtonPopoverActionButtonText: {
-      fontFamily: '"Space Mono", monospace',
+      fontFamily: FONT_MONO_FACE,
     },
     userButtonPopoverFooter: {
       display: "none",

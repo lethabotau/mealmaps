@@ -13,7 +13,7 @@ export function SetupRequired({ title, steps }: SetupRequiredProps) {
         >
           <div
             style={{
-              fontFamily: "Space Mono, monospace",
+              fontFamily: "var(--font-mono)",
               fontSize: 11,
               letterSpacing: "2px",
               color: "#E5431E",
@@ -24,8 +24,8 @@ export function SetupRequired({ title, steps }: SetupRequiredProps) {
           </div>
           <h1
             style={{
-              fontFamily: "Archivo",
-              fontWeight: 900,
+              fontFamily: "var(--font-display)",
+              fontWeight: 800,
               fontSize: 32,
               letterSpacing: "-0.8px",
               margin: "0 0 16px",
@@ -35,7 +35,7 @@ export function SetupRequired({ title, steps }: SetupRequiredProps) {
           </h1>
           <ol
             style={{
-              fontFamily: "Archivo",
+              fontFamily: "var(--font-sans)",
               fontSize: 15,
               lineHeight: 1.7,
               color: "#4A423A",
@@ -51,7 +51,7 @@ export function SetupRequired({ title, steps }: SetupRequiredProps) {
           </ol>
           <p
             style={{
-              fontFamily: "Space Mono, monospace",
+              fontFamily: "var(--font-mono)",
               fontSize: 12,
               color: "#8a7d6c",
               margin: 0,

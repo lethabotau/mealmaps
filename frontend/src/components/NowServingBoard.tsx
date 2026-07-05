@@ -31,7 +31,7 @@ export function NowServingBoard({ tickets, onSelectTicket }: NowServingBoardProp
     <div className="mm-now-serving">
       <div
         style={{
-          fontFamily: "Space Mono, monospace",
+          fontFamily: "var(--font-mono)",
           fontSize: 10,
           letterSpacing: "2px",
           color: "#E5431E",

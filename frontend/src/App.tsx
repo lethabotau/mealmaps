@@ -134,7 +134,7 @@ export default function App() {
     return (
       <div className="mm-page mm-container" style={{ paddingTop: 80 }}>
         <h2>Could not reach the MealMap backend</h2>
-        <p style={{ fontFamily: "Space Mono, monospace", color: "#8a7d6c" }}>
+        <p style={{ fontFamily: "var(--font-mono)", color: "#8a7d6c" }}>
           {error}
         </p>
         <p>

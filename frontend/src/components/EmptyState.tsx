@@ -19,7 +19,7 @@ export function EmptyState({ onClearFilters, onOpenAdd }: EmptyStateProps) {
     >
       <div
         style={{
-          fontFamily: "Space Mono, monospace",
+          fontFamily: "var(--font-mono)",
           fontSize: 11,
           letterSpacing: "2px",
           color: "#a89a83",
@@ -30,8 +30,8 @@ export function EmptyState({ onClearFilters, onOpenAdd }: EmptyStateProps) {
       </div>
       <div
         style={{
-          fontFamily: "Archivo",
-          fontWeight: 900,
+          fontFamily: "var(--font-display)",
+          fontWeight: 800,
           fontSize: 24,
           letterSpacing: "-0.5px",
           marginBottom: 8,
@@ -41,7 +41,7 @@ export function EmptyState({ onClearFilters, onOpenAdd }: EmptyStateProps) {
       </div>
       <div
         style={{
-          fontFamily: "Archivo",
+          fontFamily: "var(--font-sans)",
           fontSize: 15,
           color: "#8a7d6c",
           maxWidth: 340,
@@ -61,10 +61,12 @@ export function EmptyState({ onClearFilters, onOpenAdd }: EmptyStateProps) {
         }}
       >
         <button
+          type="button"
           onClick={onClearFilters}
+          className="mm-empty-btn"
           style={{
-            fontFamily: "Archivo",
-            fontWeight: 700,
+            fontFamily: "var(--font-sans)",
+            fontWeight: 500,
             fontSize: 14,
             background: "none",
             color: "#1B1712",
@@ -77,10 +79,12 @@ export function EmptyState({ onClearFilters, onOpenAdd }: EmptyStateProps) {
           Clear filters
         </button>
         <button
+          type="button"
           onClick={onOpenAdd}
+          className="mm-empty-btn"
           style={{
-            fontFamily: "Archivo",
-            fontWeight: 800,
+            fontFamily: "var(--font-sans)",
+            fontWeight: 500,
             fontSize: 14,
             background: "#E5431E",
             color: "#FBF7EE",
@@ -99,8 +103,8 @@ export function EmptyState({ onClearFilters, onOpenAdd }: EmptyStateProps) {
           position: "absolute",
           right: 20,
           bottom: 14,
-          fontFamily: "Archivo",
-          fontWeight: 900,
+          fontFamily: "var(--font-display)",
+          fontWeight: 800,
           fontSize: 20,
           color: "#d8ccb4",
           border: "3px solid #d8ccb4",

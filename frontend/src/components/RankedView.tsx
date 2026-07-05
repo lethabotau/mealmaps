@@ -46,20 +46,10 @@ export function RankedView({
           margin: "8px 0 4px",
         }}
       >
-        <h1
-          style={{
-            fontFamily: "Archivo",
-            fontWeight: 900,
-            fontSize: "clamp(30px,4vw,44px)",
-            letterSpacing: "-1.2px",
-            margin: 0,
-          }}
-        >
-          Ranked results
-        </h1>
+        <h1 className="mm-page-title">Ranked results</h1>
         <span
           style={{
-            fontFamily: "Space Mono, monospace",
+            fontFamily: "var(--font-mono)",
             fontSize: 14,
             color: "#8a7d6c",
           }}
@@ -69,7 +59,7 @@ export function RankedView({
       </div>
       <p
         style={{
-          fontFamily: "Space Mono, monospace",
+          fontFamily: "var(--font-mono)",
           fontSize: 12.5,
           color: "#8a7d6c",
           margin: "6px 0 20px",
@@ -85,63 +75,13 @@ export function RankedView({
       </div>
 
       {hasResults ? (
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: 16,
-            maxWidth: 760,
-          }}
-        >
-          <button
-            type="button"
-            onClick={onOpenAdd}
-            style={{
-              alignSelf: "flex-start",
-              fontFamily: "Archivo",
-              fontWeight: 800,
-              fontSize: 14,
-              letterSpacing: "0.2px",
-              lineHeight: 1.25,
-              textAlign: "left",
-              background: "#FBF7EE",
-              color: "#1B1712",
-              border: "2.5px solid #1B1712",
-              borderRadius: "10px 7px 10px 7px",
-              boxShadow: "4px 4px 0 rgba(27,23,18,0.88)",
-              cursor: "pointer",
-              padding: "11px 18px",
-              transform: "rotate(-1.5deg)",
-            }}
-          >
+        <div className="mm-ranked-list">
+          <button type="button" onClick={onOpenAdd} className="mm-ranked-cta">
             + Found food
           </button>
           {rankedTickets.map((ticket) => (
-            <div
-              key={ticket.id}
-              style={{ display: "flex", alignItems: "stretch", gap: 14 }}
-            >
-              <div
-                style={{
-                  flexShrink: 0,
-                  width: 40,
-                  display: "flex",
-                  justifyContent: "center",
-                  paddingTop: 6,
-                }}
-              >
-                <span
-                  style={{
-                    fontFamily: "Archivo",
-                    fontWeight: 900,
-                    fontSize: 34,
-                    color: "#d8ccb4",
-                    lineHeight: 1,
-                  }}
-                >
-                  {ticket.rank}
-                </span>
-              </div>
+            <div key={ticket.id} className="mm-ranked-row">
+              <span className="mm-ranked-num">{ticket.rank}</span>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <TicketCard
                   ticket={ticket}

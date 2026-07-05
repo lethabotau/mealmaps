@@ -25,16 +25,7 @@ export function FilterBar({ groups, embedded = false }: FilterBarProps) {
             style={{ display: "flex", flexDirection: "column", gap: 8 }}
           >
             {group.name ? (
-              <span
-                style={{
-                  fontFamily: "Space Mono, monospace",
-                  fontSize: 11,
-                  letterSpacing: "2px",
-                  color: "#8a7d6c",
-                }}
-              >
-                {group.name}
-              </span>
+              <span className="mm-order-slip-label">{group.name}</span>
             ) : null}
             {isToggle ? (
               group.options.map((option) => (
@@ -42,54 +33,28 @@ export function FilterBar({ groups, embedded = false }: FilterBarProps) {
                   key={option.label}
                   type="button"
                   onClick={option.onClick}
-                  style={{
-                    fontFamily: "Archivo",
-                    fontWeight: 600,
-                    fontSize: 11,
-                    lineHeight: 1.2,
-                    padding: "4px 11px",
-                    borderRadius: 999,
-                    border:
-                      option.bg === "#1B1712"
-                        ? "1.5px solid #1B1712"
-                        : "1px solid #d8ccb4",
-                    background:
-                      option.bg === "#1B1712" ? "#FBF7EE" : "transparent",
-                    color:
-                      option.bg === "#1B1712" ? "#1B1712" : "#8a7d6c",
-                    cursor: "pointer",
-                  }}
+                  className={`mm-order-slip-chip mm-order-slip-toggle${
+                    option.bg === "#1B1712" ? " is-active" : ""
+                  }`}
                 >
                   {option.label}
                 </button>
               ))
             ) : (
-              <div
-                style={{
-                  display: "inline-flex",
-                  border: "2px solid #1B1712",
-                  borderRadius: 8,
-                  overflow: "hidden",
-                }}
-              >
+              <div className="mm-order-slip-segmented">
                 {group.options.map((option, index) => (
                   <button
                     key={option.label}
                     type="button"
                     onClick={option.onClick}
+                    className="mm-order-slip-segment-btn"
                     style={{
-                      fontFamily: "Archivo",
-                      fontWeight: 700,
-                      fontSize: 13,
-                      border: "none",
-                      borderRight:
-                        index < group.options.length - 1
-                          ? "2px solid #1B1712"
-                          : "none",
-                      cursor: "pointer",
-                      padding: "8px 13px",
                       background: option.bg,
                       color: option.color,
+                      borderRight:
+                        index < group.options.length - 1
+                          ? "1.5px solid #1B1712"
+                          : "none",
                     }}
                   >
                     {option.label}
