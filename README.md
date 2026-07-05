@@ -1,4 +1,4 @@
-# MealMap
+# MealMap: https://mealmapfrontend-production.up.railway.app/
 
 MealMap helps students find **free and cheap food on campus**, ranked by what’s worth walking to.
 
