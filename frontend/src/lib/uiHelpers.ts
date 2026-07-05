@@ -1,4 +1,4 @@
-import type { Filters } from "@mealmap/shared";
+import type { CampusArea, Filters } from "@mealmap/shared";
 
 export interface FilterOption {
   label: string;
@@ -15,6 +15,8 @@ export interface FilterGroup {
 export function buildFilterGroups(
   filters: Filters,
   setFilter: (key: keyof Filters, value: Filters[keyof Filters]) => void,
+  vantage: CampusArea,
+  setVantage: (value: CampusArea) => void,
 ): FilterGroup[] {
   const chip = (active: boolean) =>
     active
@@ -56,7 +58,7 @@ export function buildFilterGroups(
     },
   ];
 
-  return groups.map((group) => ({
+  const filterGroups: FilterGroup[] = groups.map((group) => ({
     name: group.name,
     options: group.opts.map(([value, label]) => {
       const active = filters[group.key] === value;
@@ -68,6 +70,24 @@ export function buildFilterGroups(
       };
     }),
   }));
+
+  // Vantage ("I'm near:") is independent of the Area filter — it only drives
+  // walk computation and walk-based sorting.
+  const vantageOpts: Array<[CampusArea, string]> = [
+    ["quad", "Quad"],
+    ["library", "Library"],
+    ["lower", "Lower Campus"],
+  ];
+
+  filterGroups.push({
+    name: "I'M NEAR",
+    options: vantageOpts.map(([value, label]) => {
+      const colors = chip(vantage === value);
+      return { label, ...colors, onClick: () => setVantage(value) };
+    }),
+  });
+
+  return filterGroups;
 }
 
 export const REPORT_TOAST: Record<string, string> = {

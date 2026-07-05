@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { ReportKind, TicketView } from "@mealmap/shared";
 import { SYSTEM_INGEST_USER } from "@mealmap/shared";
 
@@ -5,7 +6,7 @@ interface DetailPanelProps {
   ticket: TicketView;
   toast: string;
   onClose: () => void;
-  onReport: (kind: ReportKind) => void;
+  onReport: (kind: ReportKind, locationText?: string) => void;
 }
 
 const REPORT_BUTTONS: Array<{ label: string; color: string; kind: ReportKind }> = [
@@ -19,6 +20,8 @@ const REPORT_BUTTONS: Array<{ label: string; color: string; kind: ReportKind }> 
 export function DetailPanel({ ticket, toast, onClose, onReport }: DetailPanelProps) {
   const isAutoSource = ticket.createdBy.userId === SYSTEM_INGEST_USER.userId;
   const isUnverified = ticket.trust === "unverified";
+  const needsLocation = ticket.coords == null;
+  const [pinText, setPinText] = useState("");
   return (
     <>
       <div
@@ -220,7 +223,11 @@ export function DetailPanel({ ticket, toast, onClose, onReport }: DetailPanelPro
             <span style={{ color: "#9a8d7a" }}>WHERE</span>
             <span style={{ color: "#1B1712" }}>{ticket.where}</span>
             <span style={{ color: "#9a8d7a" }}>WALK</span>
-            <span style={{ color: "#1B1712" }}>{ticket.walk} min</span>
+            <span style={{ color: "#1B1712" }}>
+              {ticket.walk === null
+                ? "walk unknown — location unconfirmed"
+                : `${ticket.walk} min`}
+            </span>
             <span style={{ color: "#9a8d7a" }}>ENDS</span>
             <span style={{ fontWeight: 700, color: ticket.endsColor }}>
               {ticket.ends}
@@ -275,11 +282,49 @@ export function DetailPanel({ ticket, toast, onClose, onReport }: DetailPanelPro
           >
             — REPORT WHAT YOU SEE —
           </div>
+
+          {needsLocation && (
+            <div style={{ marginBottom: 12 }}>
+              <label
+                style={{
+                  display: "block",
+                  fontFamily: "Space Mono, monospace",
+                  fontSize: 11.5,
+                  color: "#8a7d6c",
+                  marginBottom: 6,
+                }}
+              >
+                Where exactly? (optional — helps with "Still available")
+              </label>
+              <input
+                value={pinText}
+                onChange={(e) => setPinText(e.target.value)}
+                placeholder="e.g. Quad 1043"
+                style={{
+                  width: "100%",
+                  fontFamily: "Space Mono, monospace",
+                  fontSize: 13.5,
+                  background: "#FFFDF7",
+                  border: "2px solid #1B1712",
+                  borderRadius: 8,
+                  padding: "10px 12px",
+                }}
+              />
+            </div>
+          )}
+
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
             {REPORT_BUTTONS.map((button) => (
               <button
                 key={button.kind}
-                onClick={() => onReport(button.kind)}
+                onClick={() =>
+                  onReport(
+                    button.kind,
+                    button.kind === "still"
+                      ? pinText.trim() || undefined
+                      : undefined,
+                  )
+                }
                 style={{
                   fontFamily: "Archivo",
                   fontWeight: 700,

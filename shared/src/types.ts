@@ -22,6 +22,12 @@ export interface UserIdentity {
   displayName: string;
 }
 
+/** Approximate geographic coordinates (WGS84). */
+export interface Coords {
+  lat: number;
+  lng: number;
+}
+
 export interface Ticket {
   id: string;
   no: string;
@@ -31,8 +37,13 @@ export interface Ticket {
   cost: number;
   area: CampusArea;
   time: TimeWindow;
-  walk: number;
+  /** Display location name (the "locationName"), e.g. "Main Library". */
   where: string;
+  /**
+   * Approximate coords of `where`, resolved via the campus geo table on create.
+   * `null`/absent when the location text didn't match (walk shows as unknown).
+   */
+  coords?: Coords | null;
   ends: string;
   access: string;
   confirmed: string;
@@ -137,7 +148,6 @@ export interface CreateTicketInput {
   cost: number;
   area: CampusArea;
   time?: TimeWindow;
-  walk?: number;
   where: string;
   ends: string;
   access: string;
@@ -147,6 +157,8 @@ export interface CreateTicketInput {
 }
 
 export interface TicketView extends Ticket {
+  /** Walk minutes from the current vantage, or `null` when coords are unknown. */
+  walk: number | null;
   costLabel: string;
   costColor: string;
   worthLabel: string;

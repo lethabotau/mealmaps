@@ -14,6 +14,7 @@ import {
   SYSTEM_INGEST_USER,
   createTicketId,
   generateTicketNumber,
+  resolveLocation,
 } from "@mealmap/shared";
 
 export { SYSTEM_INGEST_USER };
@@ -59,8 +60,8 @@ export function createTicket(
     cost: input.cost,
     area: input.area,
     time: input.time ?? "now",
-    walk: input.walk ?? 5,
     where: input.where,
+    coords: resolveLocation(input.where)?.coords ?? null,
     ends: input.ends,
     access: input.access,
     confirmed: "just now",
@@ -117,8 +118,8 @@ export function insertAutoTicket(
     cost: input.cost,
     area: "quad",
     time: input.time,
-    walk: 15,
     where: "location unconfirmed",
+    coords: null,
     ends: input.ends,
     access: "check event page",
     confirmed: "not yet confirmed",
@@ -149,6 +150,7 @@ export function applyReport(
   id: string,
   kind: ReportKind,
   reportedBy: UserIdentity,
+  locationText?: string,
 ): ReportRecord {
   const current = state.confirm[id] ?? { count: 3, last: "4 min ago" };
   const record: ReportRecord = {
@@ -163,8 +165,29 @@ export function applyReport(
 
   if (kind === "still") {
     const ticket = state.tickets.find((t) => t.id === id);
-    if (ticket && ticket.trust === "unverified") {
-      ticket.trust = "confirmed";
+    if (ticket) {
+      if (ticket.trust === "unverified") {
+        ticket.trust = "confirmed";
+      }
+      // Crowd location pinning: a "still available" report can carry an optional
+      // "where exactly?" note. Only touch coords/where when they're still unknown.
+      if (!ticket.coords) {
+        const pin = locationText?.trim();
+        if (pin) {
+          const resolved = resolveLocation(pin);
+          if (resolved) {
+            ticket.coords = resolved.coords;
+            ticket.where = resolved.name;
+          } else {
+            // No match — still better than "location unconfirmed"; coords stay null.
+            ticket.where = pin;
+          }
+        } else {
+          // No note given: try to pin from the existing where-text if it matches.
+          const resolved = resolveLocation(ticket.where);
+          if (resolved) ticket.coords = resolved.coords;
+        }
+      }
     }
     state.confirm[id] = {
       count: current.count + 1,

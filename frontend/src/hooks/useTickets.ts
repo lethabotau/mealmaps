@@ -77,15 +77,21 @@ export function useTickets() {
     return ticket;
   }, []);
 
-  const submitReport = useCallback(async (id: string, kind: ReportKind) => {
-    const data = await reportTicket(id, kind);
-    setState((prev) => ({
-      ...prev,
-      overrides: data.overrides,
-      confirm: data.confirm,
-    }));
-    return data;
-  }, []);
+  const submitReport = useCallback(
+    async (id: string, kind: ReportKind, locationText?: string) => {
+      const data = await reportTicket(id, kind, locationText);
+      setState((prev) => ({
+        ...prev,
+        // Merge the updated ticket so a trust flip / newly-pinned location
+        // (coords + where) re-renders and re-ranks without a full reload.
+        tickets: prev.tickets.map((t) => (t.id === data.ticket.id ? data.ticket : t)),
+        overrides: data.overrides,
+        confirm: data.confirm,
+      }));
+      return data;
+    },
+    [],
+  );
 
   return {
     ...state,

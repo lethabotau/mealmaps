@@ -26,6 +26,31 @@ describe("filterTickets", () => {
     const goneIndex = result.findIndex((ticket) => ticket.id === "t5");
     expect(goneIndex).toBe(result.length - 1);
   });
+
+  it("narrows by Area independently of the walk vantage", () => {
+    // Area filter narrows the set; vantage only affects walk/sort, not membership.
+    const result = filterTickets(
+      SEED_TICKETS,
+      { budget: "u10", time: "today", area: "quad" },
+      {},
+      "library",
+    );
+    expect(result.length).toBeGreaterThan(0);
+    expect(result.every((ticket) => ticket.area === "quad")).toBe(true);
+  });
+
+  it("re-sorts the same set when the vantage changes", () => {
+    const filters = { budget: "u10", time: "today", area: "anywhere" } as const;
+    const fromQuad = filterTickets(SEED_TICKETS, filters, {}, "quad").map(
+      (t) => t.id,
+    );
+    const fromLower = filterTickets(SEED_TICKETS, filters, {}, "lower").map(
+      (t) => t.id,
+    );
+    // Same members, different vantage → different walk-based ordering.
+    expect([...fromQuad].sort()).toEqual([...fromLower].sort());
+    expect(fromQuad).not.toEqual(fromLower);
+  });
 });
 
 describe("extractFromPost", () => {

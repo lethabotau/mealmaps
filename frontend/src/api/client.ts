@@ -77,14 +77,16 @@ export function createTicket(
 export function reportTicket(
   id: string,
   kind: ReportKind,
+  locationText?: string,
 ): Promise<{
   overrides: TicketOverrides;
   confirm: Record<string, TicketConfirmMeta>;
   report: ReportRecord;
+  ticket: Ticket;
 }> {
   return request(`/api/tickets/${id}/report`, {
     method: "POST",
-    body: JSON.stringify({ kind }),
+    body: JSON.stringify({ kind, locationText }),
   });
 }
 

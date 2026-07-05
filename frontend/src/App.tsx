@@ -5,6 +5,7 @@ import {
   buildTicketFromExtracted,
   filterTickets,
   toTicketView,
+  type CampusArea,
   type ExtractedPost,
   type ExtractResult,
   type Filters,
@@ -34,6 +35,7 @@ export default function App() {
 
   const [screen, setScreen] = useState<Screen>("dashboard");
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
+  const [vantage, setVantage] = useState<CampusArea>("quad");
   const [detailId, setDetailId] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [toast, setToast] = useState("");
@@ -41,9 +43,9 @@ export default function App() {
   const [pasteExtractToken, setPasteExtractToken] = useState(0);
 
   const handleReport = useCallback(
-    async (kind: ReportKind) => {
+    async (kind: ReportKind, locationText?: string) => {
       if (!detailId) return;
-      await submitReport(detailId, kind);
+      await submitReport(detailId, kind, locationText);
       setToast(REPORT_TOAST[kind] ?? "Thanks for the update!");
     },
     [detailId, submitReport],
@@ -63,7 +65,7 @@ export default function App() {
         return;
       }
       if (action.type === "report") {
-        void handleReport(action.kind);
+        void handleReport(action.kind, action.locationText);
         return;
       }
       if (action.type === "paste-extract") {
@@ -84,13 +86,14 @@ export default function App() {
   }, [getToken]);
 
   const filtered = useMemo(
-    () => filterTickets(tickets, filters, overrides),
-    [tickets, filters, overrides],
+    () => filterTickets(tickets, filters, overrides, vantage),
+    [tickets, filters, overrides, vantage],
   );
 
   const views = useMemo(
-    () => filtered.map((ticket) => toTicketView(ticket, overrides, confirm)),
-    [filtered, overrides, confirm],
+    () =>
+      filtered.map((ticket) => toTicketView(ticket, overrides, confirm, vantage)),
+    [filtered, overrides, confirm, vantage],
   );
 
   const rankedTickets = useMemo(
@@ -100,10 +103,15 @@ export default function App() {
 
   const filterGroups = useMemo(
     () =>
-      buildFilterGroups(filters, (key, value) => {
-        setFilters((prev) => ({ ...prev, [key]: value }));
-      }),
-    [filters],
+      buildFilterGroups(
+        filters,
+        (key, value) => {
+          setFilters((prev) => ({ ...prev, [key]: value }));
+        },
+        vantage,
+        setVantage,
+      ),
+    [filters, vantage],
   );
 
   const detailTicket = detailId
@@ -212,8 +220,10 @@ export default function App() {
           ticket={detailTicket}
           toast={toast}
           onClose={() => setDetailId(null)}
-          onReport={(kind) =>
-            gate({ type: "report", kind }, () => void handleReport(kind))
+          onReport={(kind, locationText) =>
+            gate({ type: "report", kind, locationText }, () =>
+              void handleReport(kind, locationText),
+            )
           }
         />
       )}

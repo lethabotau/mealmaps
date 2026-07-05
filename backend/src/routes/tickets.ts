@@ -58,7 +58,6 @@ ticketsRouter.post("/", requireWriteAuth, async (req, res) => {
       cost: body.cost ?? 0,
       area: body.area ?? "quad",
       time: body.time,
-      walk: body.walk,
       where: body.where,
       ends: body.ends,
       access: body.access,
@@ -92,12 +91,16 @@ ticketsRouter.post("/:id/report", requireWriteAuth, async (req, res) => {
     return;
   }
 
+  const locationText =
+    typeof req.body?.locationText === "string" ? req.body.locationText : undefined;
+
   const reportedBy = await resolveAuthUser(req);
-  const report = applyReport(ticket.id, kind, reportedBy);
+  const report = applyReport(ticket.id, kind, reportedBy, locationText);
 
   res.json({
     overrides: getOverrides(),
     confirm: getConfirmMeta(),
     report,
+    ticket: getTicket(ticket.id),
   });
 });

@@ -166,12 +166,12 @@ export function TicketCard({ ticket, onClick }: TicketCardProps) {
             style={{
               fontFamily: "Space Mono, monospace",
               fontWeight: 700,
-              fontSize: 27,
-              color: "#1B1712",
+              fontSize: ticket.walk === null ? 22 : 27,
+              color: ticket.walk === null ? "#a89a86" : "#1B1712",
               lineHeight: 1,
             }}
           >
-            {ticket.walk}
+            {ticket.walk === null ? "—" : ticket.walk}
           </div>
           <div
             style={{
@@ -182,7 +182,7 @@ export function TicketCard({ ticket, onClick }: TicketCardProps) {
               marginTop: 2,
             }}
           >
-            MIN WALK
+            {ticket.walk === null ? "LOCATION?" : "MIN WALK"}
           </div>
         </div>
         {isUnverified ? (

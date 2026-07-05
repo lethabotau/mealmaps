@@ -17,6 +17,7 @@ import type {
   WorthLevel,
 } from "./types.js";
 import { SEED_AUTHORS } from "./seedUsers.js";
+import { areaVantage, computeWalk, coordsFor } from "./campus.js";
 
 /**
  * Fixed identity for auto-ingested tickets. Shared so backend can stamp it and
@@ -89,6 +90,7 @@ export function filterTickets(
   tickets: Ticket[],
   filters: Filters,
   overrides: TicketOverrides = {},
+  vantage: CampusArea = "quad",
 ): Ticket[] {
   const list = tickets.filter((ticket) => {
     if (filters.budget === "free" && ticket.cost !== 0) return false;
@@ -105,6 +107,13 @@ export function filterTickets(
     return true;
   });
 
+  // Walk is relative to the user's vantage ("I'm near:"), independent of the
+  // Area filter (which only narrows the visible set).
+  const vantageCoords = areaVantage(vantage);
+  // Unknown-walk (unresolved coords) ranks below any known walk (clamp max 25).
+  const walkKey = (ticket: Ticket) =>
+    computeWalk(vantageCoords, ticket.coords) ?? 26;
+
   return list.sort((a, b) => {
     const trustDiff = trustRank(a) - trustRank(b);
     if (trustDiff !== 0) return trustDiff;
@@ -119,7 +128,7 @@ export function filterTickets(
     const timeDiff = timeRank(a.time) - timeRank(b.time);
     if (timeDiff !== 0) return timeDiff;
 
-    return a.walk - b.walk;
+    return walkKey(a) - walkKey(b);
   });
 }
 
@@ -127,6 +136,7 @@ export function toTicketView(
   ticket: Ticket,
   overrides: TicketOverrides = {},
   confirm: Record<string, TicketConfirmMeta> = {},
+  vantage: CampusArea | "anywhere" = "quad",
 ): TicketView {
   const status = effectiveStatus(ticket, overrides);
   const gone = status === "gone";
@@ -134,6 +144,7 @@ export function toTicketView(
 
   return {
     ...ticket,
+    walk: computeWalk(areaVantage(vantage), ticket.coords),
     effectiveStatus: status,
     ends: gone ? "gone" : ticket.ends,
     endsColor: gone ? STATUS_COLORS.gone : "#E5431E",
@@ -166,7 +177,6 @@ export function buildQuickAddTicket(input: {
     cost: 0,
     area: inferAreaFromWhere(input.where),
     time: "now",
-    walk: 2 + Math.floor(Math.random() * 8),
     where: input.where || "On campus",
     ends: input.last || "until gone",
     access: "Open to all",
@@ -194,7 +204,6 @@ export function buildTicketFromExtracted(extracted: ExtractedPost): CreateTicket
     cost,
     area: "quad",
     time: extracted.timeWindow ?? "now",
-    walk: 2 + Math.floor(Math.random() * 8),
     where: extracted.location !== "—" ? extracted.location : "See post",
     ends:
       extracted.time !== "—"
@@ -422,8 +431,8 @@ export const SEED_TICKETS: Ticket[] = [
     cost: 0,
     area: "quad",
     time: "now",
-    walk: 6,
-    where: "Quad 1043",
+    where: "Quadrangle",
+    coords: coordsFor("Quadrangle"),
     ends: "ends 2:00pm",
     access: "Open to attendees",
     confirmed: "8 min ago",
@@ -441,8 +450,8 @@ export const SEED_TICKETS: Ticket[] = [
     cost: 0,
     area: "library",
     time: "now",
-    walk: 3,
-    where: "Library Atrium",
+    where: "Main Library",
+    coords: coordsFor("Main Library"),
     ends: "ends 11:30am",
     access: "Open to all",
     confirmed: "2 min ago",
@@ -460,8 +469,8 @@ export const SEED_TICKETS: Ticket[] = [
     cost: 0,
     area: "library",
     time: "now",
-    walk: 4,
-    where: "Library 3F",
+    where: "Law Library",
+    coords: coordsFor("Law Library"),
     ends: "restocks hourly",
     access: "Open to all",
     confirmed: "12 min ago",
@@ -479,8 +488,8 @@ export const SEED_TICKETS: Ticket[] = [
     cost: 2,
     area: "lower",
     time: "now",
-    walk: 11,
-    where: "Lower Commons",
+    where: "Lower Campus Food Court",
+    coords: coordsFor("Lower Campus Food Court"),
     ends: "until sold out",
     access: "Cash only",
     confirmed: "20 min ago",
@@ -498,8 +507,8 @@ export const SEED_TICKETS: Ticket[] = [
     cost: 0,
     area: "quad",
     time: "now",
-    walk: 8,
-    where: "Union Hall 2F",
+    where: "Mathews Building",
+    coords: coordsFor("Mathews Building"),
     ends: "ends 1:00pm",
     access: "Open to all",
     confirmed: "35 min ago",
@@ -517,8 +526,8 @@ export const SEED_TICKETS: Ticket[] = [
     cost: 5,
     area: "lower",
     time: "today",
-    walk: 14,
-    where: "International House",
+    where: "Roundhouse",
+    coords: coordsFor("Roundhouse"),
     ends: "starts 6:00pm",
     access: "Ticketed at door",
     confirmed: "1 hr ago",
@@ -536,8 +545,8 @@ export const SEED_TICKETS: Ticket[] = [
     cost: 0,
     area: "quad",
     time: "now",
-    walk: 5,
-    where: "Quad Lawn",
+    where: "Village Green",
+    coords: coordsFor("Village Green"),
     ends: "gone",
     access: "Open to all",
     confirmed: "1 min ago",

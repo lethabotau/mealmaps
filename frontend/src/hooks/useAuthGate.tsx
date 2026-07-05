@@ -9,7 +9,7 @@ import type { ReportKind } from "@mealmap/shared";
 
 export type PendingAction =
   | { type: "add-food" }
-  | { type: "report"; kind: ReportKind }
+  | { type: "report"; kind: ReportKind; locationText?: string }
   | { type: "paste-extract" }
   | { type: "paste-submit" };
 
