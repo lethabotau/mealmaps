@@ -6,6 +6,7 @@ import {
 } from "react";
 import { SignIn, useAuth } from "@clerk/clerk-react";
 import type { ReportKind } from "@mealmap/shared";
+import { clerkAppearance } from "../lib/clerkAppearance";
 
 export type PendingAction =
   | { type: "add-food" }
@@ -115,7 +116,7 @@ export function AuthSignInOverlay({ open, onDismiss }: AuthSignInOverlayProps) {
             boxShadow: "8px 8px 0 rgba(27,23,18,0.85)",
           }}
         >
-          <SignIn routing="virtual" />
+          <SignIn routing="virtual" appearance={clerkAppearance} />
         </div>
       </div>
     </>

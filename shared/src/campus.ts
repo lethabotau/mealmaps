@@ -148,16 +148,21 @@ export function computeWalk(
 }
 
 /**
- * The Area filter doubles as the user's vantage point. "Anywhere" defaults to
- * the Quadrangle (central campus).
+ * The user's vantage for walk computation. Upper → Quadrangle, Lower → food court.
  */
-export const AREA_VANTAGE: Record<CampusArea | "anywhere", Coords> = {
-  quad: coordsFor("Quadrangle")!,
-  library: coordsFor("Main Library")!,
+export const VANTAGE_COORDS: Record<CampusArea, Coords> = {
+  upper: coordsFor("Quadrangle")!,
   lower: coordsFor("Lower Campus Food Court")!,
-  anywhere: coordsFor("Quadrangle")!,
+};
+
+/** @deprecated Use VANTAGE_COORDS */
+export const AREA_VANTAGE: Record<CampusArea | "anywhere", Coords> = {
+  upper: VANTAGE_COORDS.upper,
+  lower: VANTAGE_COORDS.lower,
+  anywhere: VANTAGE_COORDS.upper,
 };
 
 export function areaVantage(area: CampusArea | "anywhere"): Coords {
-  return AREA_VANTAGE[area] ?? AREA_VANTAGE.anywhere;
+  if (area === "anywhere") return VANTAGE_COORDS.upper;
+  return VANTAGE_COORDS[area] ?? VANTAGE_COORDS.upper;
 }

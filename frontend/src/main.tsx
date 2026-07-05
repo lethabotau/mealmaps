@@ -3,6 +3,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import { SetupRequired } from "./components/SetupRequired";
+import { clerkAppearance } from "./lib/clerkAppearance";
 import "./styles/global.css";
 
 const publishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
@@ -27,6 +28,7 @@ createRoot(document.getElementById("root")!).render(
         publishableKey={publishableKey}
         signInFallbackRedirectUrl={authReturnUrl}
         signUpFallbackRedirectUrl={authReturnUrl}
+        appearance={clerkAppearance}
       >
         <App />
       </ClerkProvider>

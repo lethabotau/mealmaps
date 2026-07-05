@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ReportKind, TicketView } from "@mealmap/shared";
 import { SYSTEM_INGEST_USER } from "@mealmap/shared";
 
@@ -20,8 +20,13 @@ const REPORT_BUTTONS: Array<{ label: string; color: string; kind: ReportKind }> 
 export function DetailPanel({ ticket, toast, onClose, onReport }: DetailPanelProps) {
   const isAutoSource = ticket.createdBy.userId === SYSTEM_INGEST_USER.userId;
   const isUnverified = ticket.trust === "unverified";
-  const needsLocation = ticket.coords == null;
+  const needsLocation = ticket.isPinnable;
   const [pinText, setPinText] = useState("");
+  const pinRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (needsLocation) pinRef.current?.focus();
+  }, [ticket.id, needsLocation]);
 
   // Close on Escape (unless a layer above, e.g. the sign-in overlay, consumed it).
   useEffect(() => {
@@ -231,16 +236,23 @@ export function DetailPanel({ ticket, toast, onClose, onReport }: DetailPanelPro
               {ticket.costLabel}
             </span>
             <span style={{ color: "#9a8d7a" }}>WHERE</span>
-            <span style={{ color: "#1B1712" }}>{ticket.where}</span>
-            <span style={{ color: "#9a8d7a" }}>WALK</span>
-            <span style={{ color: "#1B1712" }}>
-              {ticket.walk === null
-                ? "walk unknown — location unconfirmed"
-                : `${ticket.walk} min`}
+            <span
+              style={{
+                color: ticket.isPinnable ? "#E5431E" : "#1B1712",
+                fontWeight: ticket.isPinnable ? 700 : 400,
+              }}
+            >
+              {ticket.whereDisplay}
             </span>
-            <span style={{ color: "#9a8d7a" }}>ENDS</span>
-            <span style={{ fontWeight: 700, color: ticket.endsColor }}>
-              {ticket.ends}
+            {ticket.showWalk && (
+              <>
+                <span style={{ color: "#9a8d7a" }}>WALK</span>
+                <span style={{ color: "#1B1712" }}>{ticket.walkDetailText}</span>
+              </>
+            )}
+            <span style={{ color: "#9a8d7a" }}>{ticket.timeLabel}</span>
+            <span style={{ fontWeight: 700, color: ticket.timeColor }}>
+              {ticket.timeText}
             </span>
             <span style={{ color: "#9a8d7a" }}>ACCESS</span>
             <span style={{ color: "#1B1712" }}>{ticket.access}</span>
@@ -307,6 +319,7 @@ export function DetailPanel({ ticket, toast, onClose, onReport }: DetailPanelPro
                 Where exactly? (optional — helps with "Still available")
               </label>
               <input
+                ref={pinRef}
                 value={pinText}
                 onChange={(e) => setPinText(e.target.value)}
                 placeholder="e.g. Quad 1043"

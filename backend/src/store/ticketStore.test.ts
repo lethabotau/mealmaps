@@ -44,7 +44,7 @@ describe("ticketStore persistence", () => {
         name: "Free Cookies",
         source: "Student report",
         cost: 0,
-        area: "quad",
+        area: "upper",
         where: "Quadrangle",
         ends: "30 min",
         access: "Open to all",
@@ -73,7 +73,7 @@ describe("ticketStore persistence", () => {
       cost: 0,
       time: "today",
       worth: "high",
-      ends: "8pm",
+      ends: "starts Fri 6:00 pm",
       sourceUrl: "https://example.com",
       blurb: "Free pizza",
     });
@@ -82,7 +82,6 @@ describe("ticketStore persistence", () => {
 
     initStore({ force: true });
 
-    expect(hasAutoTickets()).toBe(true);
     const dup = insertAutoTicket({
       eventId: "evt-99",
       name: "Pizza Night",
@@ -90,12 +89,73 @@ describe("ticketStore persistence", () => {
       cost: 0,
       time: "today",
       worth: "high",
-      ends: "8pm",
+      ends: "starts Fri 6:00 pm",
       sourceUrl: "https://example.com",
       blurb: "Free pizza",
     });
     expect(dup.inserted).toBe(false);
     expect(listTickets()).toHaveLength(1);
+  });
+
+  it("resolves venue_hint to coords when alias matches", () => {
+    const { ticket } = insertAutoTicket({
+      eventId: "evt-quad",
+      name: "Quad BBQ",
+      society: "Eng Soc",
+      cost: 0,
+      time: "today",
+      worth: "high",
+      ends: "starts Sat 12:00 pm",
+      sourceUrl: "https://example.com",
+      blurb: "BBQ on the lawn — grab a plate if you're nearby.",
+      foodLikelihood: "high",
+      classifyReason: "Explicit BBQ in event name",
+      venueHint: "Quad 1043",
+      onCampus: true,
+    });
+    expect(ticket?.where).toBe("Quadrangle");
+    expect(ticket?.coords).not.toBeNull();
+    expect(ticket?.foodLikelihood).toBe("high");
+    expect(ticket?.classifyReason).toBe("Explicit BBQ in event name");
+    expect(ticket?.blurb).not.toMatch(/Food likelihood/i);
+  });
+
+  it("marks off-campus auto tickets without coords", () => {
+    const { ticket } = insertAutoTicket({
+      eventId: "evt-off",
+      name: "Food crawl — Newtown",
+      society: "Food Soc",
+      cost: 0,
+      time: "today",
+      worth: "maybe",
+      ends: "starts Sun 5:00 pm",
+      sourceUrl: "https://example.com",
+      blurb: "Off campus crawl",
+      venueHint: null,
+      onCampus: false,
+    });
+    expect(ticket?.where).toBe("off-campus event");
+    expect(ticket?.onCampus).toBe(false);
+    expect(ticket?.coords).toBeNull();
+  });
+
+  it("leaves on-campus tickets pinnable when venue_hint does not resolve", () => {
+    const { ticket } = insertAutoTicket({
+      eventId: "evt-pin",
+      name: "Free snacks",
+      society: "Random Soc",
+      cost: 0,
+      time: "today",
+      worth: "maybe",
+      ends: "starts Mon 1:00 pm",
+      sourceUrl: "https://example.com",
+      blurb: "Snacks somewhere",
+      venueHint: null,
+      onCampus: true,
+    });
+    expect(ticket?.where).toBe("location unconfirmed");
+    expect(ticket?.coords).toBeNull();
+    expect(ticket?.onCampus).toBe(true);
   });
 
   it("loads auto tickets from snapshot and skips re-ingest semantics", () => {

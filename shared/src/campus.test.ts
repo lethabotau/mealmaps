@@ -92,8 +92,8 @@ describe("resolveLocation (alias matching)", () => {
 });
 
 describe("areaVantage", () => {
-  it("maps areas to representative coords and defaults Anywhere to Quadrangle", () => {
-    expect(areaVantage("library")).toEqual(coordsFor("Main Library"));
+  it("maps upper/lower to representative coords and defaults Anywhere to Quadrangle", () => {
+    expect(areaVantage("upper")).toEqual(coordsFor("Quadrangle"));
     expect(areaVantage("lower")).toEqual(coordsFor("Lower Campus Food Court"));
     expect(areaVantage("anywhere")).toEqual(coordsFor("Quadrangle"));
   });

@@ -27,6 +27,7 @@ import {
 } from "./hooks/useAuthGate";
 import { useTickets } from "./hooks/useTickets";
 import { REPORT_TOAST, buildFilterGroups } from "./lib/uiHelpers";
+import { layoutDashboardTickets } from "./lib/dashboardTickets";
 
 export default function App() {
   const { getToken } = useAuth();
@@ -35,7 +36,7 @@ export default function App() {
 
   const [screen, setScreen] = useState<Screen>("dashboard");
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
-  const [vantage, setVantage] = useState<CampusArea>("quad");
+  const [vantage, setVantage] = useState<CampusArea>("upper");
   const [detailId, setDetailId] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [toast, setToast] = useState("");
@@ -96,6 +97,11 @@ export default function App() {
     [filtered, overrides, confirm, vantage],
   );
 
+  const { railPreview, gridTickets } = useMemo(
+    () => layoutDashboardTickets(views),
+    [views],
+  );
+
   const rankedTickets = useMemo(
     () => views.map((view, index) => ({ ...view, rank: index + 1 })),
     [views],
@@ -103,15 +109,10 @@ export default function App() {
 
   const filterGroups = useMemo(
     () =>
-      buildFilterGroups(
-        filters,
-        (key, value) => {
-          setFilters((prev) => ({ ...prev, [key]: value }));
-        },
-        vantage,
-        setVantage,
-      ),
-    [filters, vantage],
+      buildFilterGroups(filters, (key, value) => {
+        setFilters((prev) => ({ ...prev, [key]: value }));
+      }),
+    [filters],
   );
 
   const detailTicket = detailId
@@ -148,25 +149,20 @@ export default function App() {
     <div className="mm-page">
       <AuthSignInOverlay open={signInOpen} onDismiss={closeSignIn} />
       <div className="mm-container">
-        <Header
-          screen={screen}
-          onGoDash={() => setScreen("dashboard")}
-          onGoResults={() => setScreen("results")}
-          onGoPaste={() => setScreen("paste")}
-          onOpenAdd={openAddModal}
-        />
+        <Header onGoDash={() => setScreen("dashboard")} />
 
         {screen === "dashboard" && (
           <DashboardView
+            vantage={vantage}
+            onVantageChange={setVantage}
             filterGroups={filterGroups}
-            bestTickets={views.slice(0, 3)}
+            railPreview={railPreview}
+            gridTickets={gridTickets}
             resultCount={views.length}
             onOpenAdd={openAddModal}
             onGoPaste={() => setScreen("paste")}
             onGoResults={() => setScreen("results")}
-            onClearFilters={() =>
-              setFilters({ budget: "u10", time: "today", area: "anywhere" })
-            }
+            onClearFilters={() => setFilters(DEFAULT_FILTERS)}
             onSelectTicket={(id) => {
               setDetailId(id);
               setToast("");
@@ -176,13 +172,13 @@ export default function App() {
 
         {screen === "results" && (
           <RankedView
+            vantage={vantage}
+            onVantageChange={setVantage}
             filterGroups={filterGroups}
             rankedTickets={rankedTickets}
             resultCount={views.length}
             onGoDash={() => setScreen("dashboard")}
-            onClearFilters={() =>
-              setFilters({ budget: "u10", time: "today", area: "anywhere" })
-            }
+            onClearFilters={() => setFilters(DEFAULT_FILTERS)}
             onOpenAdd={openAddModal}
             onSelectTicket={(id) => {
               setDetailId(id);

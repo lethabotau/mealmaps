@@ -11,7 +11,7 @@ describe("TicketCard", () => {
       name: "Free Pizza — Sponsor Night",
       source: "CS Club",
       cost: 0,
-      area: "quad",
+      area: "upper",
       time: "now",
       where: "Quadrangle",
       ends: "ends 2:00pm",

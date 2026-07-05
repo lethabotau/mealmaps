@@ -6,6 +6,7 @@ import type {
   ExtractResult,
   FieldConfidence,
   Filters,
+  LegacyCampusArea,
   TimeNormalized,
   Ticket,
   TicketConfirmMeta,
@@ -18,6 +19,7 @@ import type {
 } from "./types.js";
 import { SEED_AUTHORS } from "./seedUsers.js";
 import { areaVantage, computeWalk, coordsFor } from "./campus.js";
+import { costDisplayFor, isFreeCost } from "./price.js";
 
 /**
  * Fixed identity for auto-ingested tickets. Shared so backend can stamp it and
@@ -53,10 +55,91 @@ export const STATUS_LABELS: Record<TicketStatus, string> = {
 };
 
 export const DEFAULT_FILTERS: Filters = {
-  budget: "u10",
+  freeOnly: false,
   time: "today",
-  area: "anywhere",
 };
+
+/** Map stored ticket area (incl. legacy quad/library) to upper/lower show zones. */
+export function normalizeArea(
+  area: CampusArea | LegacyCampusArea,
+): CampusArea {
+  if (area === "lower") return "lower";
+  return "upper";
+}
+
+/** Stored on auto tickets when the venue is unknown but on-campus. */
+export const UNCONFIRMED_WHERE = "location unconfirmed";
+
+/** Display line for off-campus auto tickets. */
+export const OFF_CAMPUS_WHERE = "off-campus event";
+
+/** Actionable where-line for on-campus tickets awaiting a crowd pin. */
+export const PINNABLE_WHERE = "📍 Been here? Pin the location";
+
+export function isOnCampus(ticket: Ticket): boolean {
+  return ticket.onCampus !== false;
+}
+
+/** Off-campus unverified tickets rank below on-campus within the same band. */
+export function onCampusRank(ticket: Ticket): number {
+  return isOnCampus(ticket) ? 0 : 1;
+}
+
+export function isPinnableTicket(ticket: Ticket): boolean {
+  return isOnCampus(ticket) && ticket.coords == null;
+}
+
+export function whereDisplayFor(ticket: Ticket): string {
+  if (!isOnCampus(ticket)) return OFF_CAMPUS_WHERE;
+  if (ticket.coords != null) return ticket.where;
+  if (
+    ticket.where === UNCONFIRMED_WHERE ||
+    ticket.where === PINNABLE_WHERE
+  ) {
+    return PINNABLE_WHERE;
+  }
+  return ticket.where;
+}
+
+/** Pick WHEN vs ENDS label from the stored time line prefix. */
+export function parseTimeLine(
+  raw: string,
+  gone: boolean,
+): { label: "WHEN" | "ENDS"; text: string; color: string } {
+  if (gone) {
+    return { label: "ENDS", text: "gone", color: STATUS_COLORS.gone };
+  }
+  const lower = raw.toLowerCase();
+  if (lower.startsWith("starts ")) {
+    return { label: "WHEN", text: raw.slice(7), color: "#E5431E" };
+  }
+  if (lower.startsWith("ends ")) {
+    return { label: "ENDS", text: raw.slice(5), color: "#E5431E" };
+  }
+  return { label: "ENDS", text: raw, color: "#E5431E" };
+}
+
+export function walkStubLabelFor(
+  showWalk: boolean,
+  walk: number | null,
+): string {
+  if (!showWalk) return "OFF CAMPUS";
+  return walk === null ? "LOCATION?" : "MIN WALK";
+}
+
+export function walkDetailTextFor(
+  showWalk: boolean,
+  walk: number | null,
+  isPinnable: boolean,
+): string {
+  if (!showWalk) return "off-campus — no walk";
+  if (walk === null) {
+    return isPinnable
+      ? "walk unknown — pin the location"
+      : "walk unknown — location unconfirmed";
+  }
+  return `${walk} min`;
+}
 
 export function worthRank(w: WorthLevel): number {
   if (w === "high") return 0;
@@ -90,12 +173,10 @@ export function filterTickets(
   tickets: Ticket[],
   filters: Filters,
   overrides: TicketOverrides = {},
-  vantage: CampusArea = "quad",
+  vantage: CampusArea = "upper",
 ): Ticket[] {
   const list = tickets.filter((ticket) => {
-    if (filters.budget === "free" && ticket.cost !== 0) return false;
-    if (filters.budget === "u5" && ticket.cost >= 5) return false;
-    if (filters.budget === "u10" && ticket.cost >= 10) return false;
+    if (filters.freeOnly && !isFreeCost(ticket.cost)) return false;
     if (filters.time === "now" && ticket.time !== "now") return false;
     if (
       filters.time === "hour" &&
@@ -103,12 +184,10 @@ export function filterTickets(
     ) {
       return false;
     }
-    if (filters.area !== "anywhere" && ticket.area !== filters.area) return false;
     return true;
   });
 
-  // Walk is relative to the user's vantage ("I'm near:"), independent of the
-  // Area filter (which only narrows the visible set).
+  // Walk is relative to the user's vantage ("I'm near:").
   const vantageCoords = areaVantage(vantage);
   // Unknown-walk (unresolved coords) ranks below any known walk (clamp max 25).
   const walkKey = (ticket: Ticket) =>
@@ -128,6 +207,9 @@ export function filterTickets(
     const timeDiff = timeRank(a.time) - timeRank(b.time);
     if (timeDiff !== 0) return timeDiff;
 
+    const campusDiff = onCampusRank(a) - onCampusRank(b);
+    if (campusDiff !== 0) return campusDiff;
+
     return walkKey(a) - walkKey(b);
   });
 }
@@ -136,20 +218,36 @@ export function toTicketView(
   ticket: Ticket,
   overrides: TicketOverrides = {},
   confirm: Record<string, TicketConfirmMeta> = {},
-  vantage: CampusArea | "anywhere" = "quad",
+  vantage: CampusArea = "upper",
 ): TicketView {
   const status = effectiveStatus(ticket, overrides);
   const gone = status === "gone";
   const meta = confirm[ticket.id];
+  const timeLine = parseTimeLine(ticket.ends, gone);
+  const showWalk = isOnCampus(ticket);
+  const isPinnable = isPinnableTicket(ticket);
+  const whereDisplay = whereDisplayFor(ticket);
+  const walk = showWalk
+    ? computeWalk(areaVantage(vantage), ticket.coords)
+    : null;
+  const cost = costDisplayFor(ticket.cost, ticket.sourcePrice);
 
   return {
     ...ticket,
-    walk: computeWalk(areaVantage(vantage), ticket.coords),
+    walk,
+    showWalk,
+    isPinnable,
+    whereDisplay,
+    timeLabel: timeLine.label,
+    timeText: timeLine.text,
+    timeColor: timeLine.color,
+    walkStubLabel: walkStubLabelFor(showWalk, walk),
+    walkDetailText: walkDetailTextFor(showWalk, walk, isPinnable),
     effectiveStatus: status,
     ends: gone ? "gone" : ticket.ends,
-    endsColor: gone ? STATUS_COLORS.gone : "#E5431E",
-    costLabel: ticket.cost === 0 ? "FREE" : `$${ticket.cost}`,
-    costColor: ticket.cost === 0 ? "#E5431E" : "#1B1712",
+    endsColor: timeLine.color,
+    costLabel: cost.label,
+    costColor: cost.color,
     worthLabel: WORTH_LABELS[ticket.worth],
     worthColor: WORTH_COLORS[ticket.worth],
     statusLabel: STATUS_LABELS[status],
@@ -161,9 +259,8 @@ export function toTicketView(
 
 export function inferAreaFromWhere(where: string): CampusArea {
   const lower = where.toLowerCase();
-  if (lower.includes("library")) return "library";
   if (lower.includes("lower")) return "lower";
-  return "quad";
+  return "upper";
 }
 
 export function buildQuickAddTicket(input: {
@@ -202,7 +299,7 @@ export function buildTicketFromExtracted(extracted: ExtractedPost): CreateTicket
         : "Event food — from post",
     source: "Pasted post",
     cost,
-    area: "quad",
+    area: "upper",
     time: extracted.timeWindow ?? "now",
     where: extracted.location !== "—" ? extracted.location : "See post",
     ends:
@@ -429,7 +526,7 @@ export const SEED_TICKETS: Ticket[] = [
     name: "Free Pizza — Sponsor Night",
     source: "CS Club",
     cost: 0,
-    area: "quad",
+    area: "upper",
     time: "now",
     where: "Quadrangle",
     coords: coordsFor("Quadrangle"),
@@ -448,7 +545,7 @@ export const SEED_TICKETS: Ticket[] = [
     name: "Bagels & Coffee — Dept Mixer",
     source: "Physics Dept",
     cost: 0,
-    area: "library",
+    area: "upper",
     time: "now",
     where: "Main Library",
     coords: coordsFor("Main Library"),
@@ -467,7 +564,7 @@ export const SEED_TICKETS: Ticket[] = [
     name: "Free Snacks — Study Lounge",
     source: "Library Services",
     cost: 0,
-    area: "library",
+    area: "upper",
     time: "now",
     where: "Law Library",
     coords: coordsFor("Law Library"),
@@ -505,7 +602,7 @@ export const SEED_TICKETS: Ticket[] = [
     name: "Leftover Sandwiches — Career Fair",
     source: "Career Center",
     cost: 0,
-    area: "quad",
+    area: "upper",
     time: "now",
     where: "Mathews Building",
     coords: coordsFor("Mathews Building"),
@@ -543,7 +640,7 @@ export const SEED_TICKETS: Ticket[] = [
     name: "Free Donuts — Frat Tabling",
     source: "Sigma Chi",
     cost: 0,
-    area: "quad",
+    area: "upper",
     time: "now",
     where: "Village Green",
     coords: coordsFor("Village Green"),

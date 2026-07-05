@@ -112,10 +112,17 @@ export function TicketCard({ ticket, onClick }: TicketCardProps) {
             {ticket.costLabel}
           </span>
           <span style={{ color: "#9a8d7a" }}>WHERE</span>
-          <span style={{ color: "#1B1712" }}>{ticket.where}</span>
-          <span style={{ color: "#9a8d7a" }}>ENDS</span>
-          <span style={{ color: ticket.endsColor, fontWeight: 700 }}>
-            {ticket.ends}
+          <span
+            style={{
+              color: ticket.isPinnable ? "#E5431E" : "#1B1712",
+              fontWeight: ticket.isPinnable ? 700 : 400,
+            }}
+          >
+            {ticket.whereDisplay}
+          </span>
+          <span style={{ color: "#9a8d7a" }}>{ticket.timeLabel}</span>
+          <span style={{ color: ticket.timeColor, fontWeight: 700 }}>
+            {ticket.timeText}
           </span>
           <span style={{ color: "#9a8d7a" }}>ACCESS</span>
           <span style={{ color: "#1B1712" }}>{ticket.access}</span>
@@ -171,7 +178,7 @@ export function TicketCard({ ticket, onClick }: TicketCardProps) {
               lineHeight: 1,
             }}
           >
-            {ticket.walk === null ? "—" : ticket.walk}
+            {ticket.showWalk ? (ticket.walk === null ? "—" : ticket.walk) : "—"}
           </div>
           <div
             style={{
@@ -182,7 +189,7 @@ export function TicketCard({ ticket, onClick }: TicketCardProps) {
               marginTop: 2,
             }}
           >
-            {ticket.walk === null ? "LOCATION?" : "MIN WALK"}
+            {ticket.walkStubLabel}
           </div>
         </div>
         {isUnverified ? (

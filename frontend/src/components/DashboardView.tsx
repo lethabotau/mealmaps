@@ -1,12 +1,16 @@
-import type { TicketView } from "@mealmap/shared";
+import type { CampusArea, TicketView } from "@mealmap/shared";
 import type { FilterGroup } from "../lib/uiHelpers";
 import { EmptyState } from "./EmptyState";
-import { FilterBar } from "./FilterBar";
+import { NowServingBoard } from "./NowServingBoard";
+import { OrderSlipBar } from "./OrderSlipBar";
 import { TicketCard } from "./TicketCard";
 
 interface DashboardViewProps {
+  vantage: CampusArea;
+  onVantageChange: (value: CampusArea) => void;
   filterGroups: FilterGroup[];
-  bestTickets: TicketView[];
+  railPreview: TicketView[];
+  gridTickets: TicketView[];
   resultCount: number;
   onOpenAdd: () => void;
   onGoPaste: () => void;
@@ -16,8 +20,11 @@ interface DashboardViewProps {
 }
 
 export function DashboardView({
+  vantage,
+  onVantageChange,
   filterGroups,
-  bestTickets,
+  railPreview,
+  gridTickets,
   resultCount,
   onOpenAdd,
   onGoPaste,
@@ -25,21 +32,12 @@ export function DashboardView({
   onClearFilters,
   onSelectTicket,
 }: DashboardViewProps) {
-  const hasResults = bestTickets.length > 0;
+  const hasResults = resultCount > 0;
 
   return (
     <section className="mm-fade-up">
-      <div
-        style={{
-          display: "flex",
-          flexWrap: "wrap",
-          alignItems: "flex-end",
-          justifyContent: "space-between",
-          gap: "22px",
-          margin: "28px 0 8px",
-        }}
-      >
-        <div style={{ maxWidth: 640 }}>
+      <div className="mm-hero">
+        <div className="mm-hero-copy">
           <div
             style={{
               fontFamily: "Space Mono, monospace",
@@ -64,59 +62,68 @@ export function DashboardView({
             Free &amp; cheap food on campus, ranked by what&apos;s worth walking
             to.
           </h1>
+          <div
+            style={{
+              marginTop: 18,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "flex-start",
+              gap: 8,
+            }}
+          >
+            <button
+              onClick={onOpenAdd}
+              style={{
+                fontFamily: "Archivo",
+                fontWeight: 800,
+                fontSize: 15,
+                letterSpacing: "0.2px",
+                lineHeight: 1.25,
+                textAlign: "left",
+                background: "#FBF7EE",
+                color: "#1B1712",
+                border: "3px solid #1B1712",
+                borderRadius: "11px 8px 11px 8px",
+                boxShadow: "5px 5px 0 rgba(27,23,18,0.88)",
+                cursor: "pointer",
+                padding: "13px 20px",
+                transform: "rotate(-2deg)",
+                maxWidth: 280,
+              }}
+            >
+              Spotted food? Add it in 10 seconds
+            </button>
+            <button
+              onClick={onGoPaste}
+              style={{
+                fontFamily: "Space Mono, monospace",
+                fontSize: 12,
+                fontWeight: 700,
+                letterSpacing: "0.5px",
+                background: "none",
+                border: "none",
+                borderBottom: "2px solid #1B1712",
+                cursor: "pointer",
+                padding: "2px 2px",
+                color: "#1B1712",
+                marginLeft: 6,
+              }}
+            >
+              or paste an event post →
+            </button>
+          </div>
         </div>
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "flex-start",
-            gap: 10,
-          }}
-        >
-          <button
-            onClick={onOpenAdd}
-            style={{
-              fontFamily: "Archivo",
-              fontWeight: 800,
-              fontSize: 15,
-              letterSpacing: "0.2px",
-              lineHeight: 1.25,
-              textAlign: "left",
-              background: "#FBF7EE",
-              color: "#1B1712",
-              border: "3px solid #1B1712",
-              borderRadius: "11px 8px 11px 8px",
-              boxShadow: "5px 5px 0 rgba(27,23,18,0.88)",
-              cursor: "pointer",
-              padding: "13px 20px",
-              transform: "rotate(-2deg)",
-              maxWidth: 240,
-            }}
-          >
-            Spotted food? Add it in 10 seconds
-          </button>
-          <button
-            onClick={onGoPaste}
-            style={{
-              fontFamily: "Space Mono, monospace",
-              fontSize: 12,
-              fontWeight: 700,
-              letterSpacing: "0.5px",
-              background: "none",
-              border: "none",
-              borderBottom: "2px solid #1B1712",
-              cursor: "pointer",
-              padding: "2px 2px",
-              color: "#1B1712",
-              marginLeft: 6,
-            }}
-          >
-            or paste an event post →
-          </button>
+
+        <div className="mm-hero-board">
+          <NowServingBoard tickets={railPreview} onSelectTicket={onSelectTicket} />
         </div>
       </div>
 
-      <FilterBar groups={filterGroups} />
+      <OrderSlipBar
+        vantage={vantage}
+        onVantageChange={onVantageChange}
+        filterGroups={filterGroups}
+      />
 
       <div
         style={{
@@ -166,7 +173,7 @@ export function DashboardView({
             gap: 18,
           }}
         >
-          {bestTickets.map((ticket) => (
+          {gridTickets.map((ticket) => (
             <TicketCard
               key={ticket.id}
               ticket={ticket}

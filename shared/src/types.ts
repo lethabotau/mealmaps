@@ -1,5 +1,8 @@
-/** Geographic zones on campus used for filtering. */
-export type CampusArea = "quad" | "library" | "lower";
+/** Geographic zones on campus used for filtering and walk vantage. */
+export type CampusArea = "upper" | "lower";
+
+/** Legacy ticket areas from before upper/lower consolidation. */
+export type LegacyCampusArea = "quad" | "library" | "lower";
 
 /** When the food is available relative to now. */
 export type TimeWindow = "now" | "hour" | "today";
@@ -35,6 +38,8 @@ export interface Ticket {
   /** Origin of the ticket, e.g. a society name, "Pasted post", or "auto". */
   source: string;
   cost: number;
+  /** Raw price text from auto-ingest (Algolia). Used for COST range labels. */
+  sourcePrice?: string;
   area: CampusArea;
   time: TimeWindow;
   /** Display location name (the "locationName"), e.g. "Main Library". */
@@ -58,6 +63,15 @@ export interface Ticket {
    * tickets start `unverified` and flip to `confirmed` on a crowd "still" report.
    */
   trust?: TrustTier;
+  /**
+   * Whether the event is on UNSW campus. `false` for off-campus events (no walk,
+   * no pin prompt). Absent means on-campus (human tickets and legacy autos).
+   */
+  onCampus?: boolean;
+  /** Auto-ingest classifier tier — stored for deck/Q&A, not shown in UI. */
+  foodLikelihood?: "high" | "medium";
+  /** Auto-ingest classifier reason — stored for deck/Q&A, not shown in UI. */
+  classifyReason?: string;
 }
 
 export interface TicketConfirmMeta {
@@ -81,9 +95,9 @@ export interface TicketOverrides {
 }
 
 export interface Filters {
-  budget: "free" | "u5" | "u10";
+  /** When true, only show tickets with cost === 0. */
+  freeOnly: boolean;
   time: "now" | "hour" | "today";
-  area: CampusArea | "anywhere";
 }
 
 export type Screen = "dashboard" | "results" | "paste";
@@ -159,12 +173,28 @@ export interface CreateTicketInput {
 export interface TicketView extends Ticket {
   /** Walk minutes from the current vantage, or `null` when coords are unknown. */
   walk: number | null;
+  /** Card/detail label for the time row (`WHEN` for start times, `ENDS` for end/duration). */
+  timeLabel: "WHEN" | "ENDS";
+  /** Time row text (prefix stripped from stored `ends` when applicable). */
+  timeText: string;
+  timeColor: string;
+  /** User-facing location line (may differ from stored `where`). */
+  whereDisplay: string;
+  /** On-campus ticket with no coords — crowd can pin the location. */
+  isPinnable: boolean;
+  /** When false (off-campus), walk is hidden and pin prompt is suppressed. */
+  showWalk: boolean;
+  /** Short label under the walk number on ticket cards. */
+  walkStubLabel: string;
+  /** Full walk line for the detail panel. */
+  walkDetailText: string;
   costLabel: string;
   costColor: string;
   worthLabel: string;
   worthColor: string;
   statusLabel: string;
   statusColor: string;
+  /** @deprecated Use timeColor */
   endsColor: string;
   confirmCount: number;
   lastChecked: string;

@@ -12,9 +12,14 @@ import type {
 import {
   SEED_TICKETS,
   SYSTEM_INGEST_USER,
+  UNCONFIRMED_WHERE,
+  OFF_CAMPUS_WHERE,
   createTicketId,
   generateTicketNumber,
+  normalizeTicketCost,
   resolveLocation,
+  inferAreaFromWhere,
+  isOnCampus,
 } from "@mealmap/shared";
 import {
   StorePersistence,
@@ -134,7 +139,7 @@ export function createTicket(
     no: generateTicketNumber(),
     name: input.name,
     source: input.source,
-    cost: input.cost,
+    cost: normalizeTicketCost(input.cost),
     area: input.area,
     time: input.time ?? "now",
     where: input.where,
@@ -166,12 +171,53 @@ export interface AutoTicketInput {
   /** Origin society, surfaced as "via MealMap Auto · <society>". */
   society: string;
   cost: number;
+  /** Raw Algolia price string for COST range display. */
+  sourcePrice?: string;
   time: TimeWindow;
   /** Intra-tier ranking hint derived from food likelihood (high vs maybe). */
   worth: WorthLevel;
   ends: string;
   sourceUrl: string;
   blurb: string;
+  foodLikelihood?: "high" | "medium";
+  classifyReason?: string;
+  venueHint?: string | null;
+  onCampus?: boolean;
+}
+
+function resolveAutoTicketLocation(input: {
+  venueHint?: string | null;
+  onCampus?: boolean;
+}): { where: string; coords: Ticket["coords"]; onCampus: boolean; area: Ticket["area"] } {
+  const onCampus = input.onCampus !== false;
+
+  if (!onCampus) {
+    return {
+      where: OFF_CAMPUS_WHERE,
+      coords: null,
+      onCampus: false,
+      area: "upper",
+    };
+  }
+
+  if (input.venueHint) {
+    const resolved = resolveLocation(input.venueHint);
+    if (resolved) {
+      return {
+        where: resolved.name,
+        coords: resolved.coords,
+        onCampus: true,
+        area: inferAreaFromWhere(resolved.name),
+      };
+    }
+  }
+
+  return {
+    where: UNCONFIRMED_WHERE,
+    coords: null,
+    onCampus: true,
+    area: "upper",
+  };
 }
 
 /**
@@ -188,16 +234,19 @@ export function insertAutoTicket(
   }
 
   const id = input.eventId ? `auto-${input.eventId}` : createTicketId("t");
+  const location = resolveAutoTicketLocation(input);
   const ticket: Ticket = {
     id,
     no: generateTicketNumber(),
     name: input.name,
     source: input.society || "UNSW society",
     cost: input.cost,
-    area: "quad",
+    sourcePrice: input.sourcePrice,
+    area: location.area,
     time: input.time,
-    where: "location unconfirmed",
-    coords: null,
+    where: location.where,
+    coords: location.coords,
+    onCampus: location.onCampus,
     ends: input.ends,
     access: "check event page",
     confirmed: "not yet confirmed",
@@ -207,6 +256,8 @@ export function insertAutoTicket(
     createdBy: SYSTEM_INGEST_USER,
     sourceUrl: input.sourceUrl,
     trust: "unverified",
+    foodLikelihood: input.foodLikelihood,
+    classifyReason: input.classifyReason,
   };
 
   state.tickets.push(ticket);
@@ -248,7 +299,7 @@ export function applyReport(
       if (ticket.trust === "unverified") {
         ticket.trust = "confirmed";
       }
-      if (!ticket.coords) {
+      if (!ticket.coords && isOnCampus(ticket)) {
         const pin = locationText?.trim();
         if (pin) {
           const resolved = resolveLocation(pin);

@@ -1,10 +1,13 @@
-import type { RankedTicketView } from "@mealmap/shared";
+import type { CampusArea, RankedTicketView } from "@mealmap/shared";
 import type { FilterGroup } from "../lib/uiHelpers";
 import { EmptyState } from "./EmptyState";
 import { FilterBar } from "./FilterBar";
 import { TicketCard } from "./TicketCard";
+import { VantageBar } from "./VantageBar";
 
 interface RankedViewProps {
+  vantage: CampusArea;
+  onVantageChange: (value: CampusArea) => void;
   filterGroups: FilterGroup[];
   rankedTickets: RankedTicketView[];
   resultCount: number;
@@ -15,6 +18,8 @@ interface RankedViewProps {
 }
 
 export function RankedView({
+  vantage,
+  onVantageChange,
   filterGroups,
   rankedTickets,
   resultCount,
@@ -74,6 +79,7 @@ export function RankedView({
         Sorted by worth-walking, then distance. Gone tickets sink to the bottom.
       </p>
 
+      <VantageBar vantage={vantage} onChange={onVantageChange} />
       <div className="mm-panel" style={{ margin: "0 0 26px", padding: "16px 18px" }}>
         <FilterBar groups={filterGroups} embedded />
       </div>
@@ -87,6 +93,29 @@ export function RankedView({
             maxWidth: 760,
           }}
         >
+          <button
+            type="button"
+            onClick={onOpenAdd}
+            style={{
+              alignSelf: "flex-start",
+              fontFamily: "Archivo",
+              fontWeight: 800,
+              fontSize: 14,
+              letterSpacing: "0.2px",
+              lineHeight: 1.25,
+              textAlign: "left",
+              background: "#FBF7EE",
+              color: "#1B1712",
+              border: "2.5px solid #1B1712",
+              borderRadius: "10px 7px 10px 7px",
+              boxShadow: "4px 4px 0 rgba(27,23,18,0.88)",
+              cursor: "pointer",
+              padding: "11px 18px",
+              transform: "rotate(-1.5deg)",
+            }}
+          >
+            + Found food
+          </button>
           {rankedTickets.map((ticket) => (
             <div
               key={ticket.id}

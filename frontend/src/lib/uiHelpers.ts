@@ -1,4 +1,4 @@
-import type { CampusArea, Filters } from "@mealmap/shared";
+import type { Filters } from "@mealmap/shared";
 
 export interface FilterOption {
   label: string;
@@ -9,14 +9,13 @@ export interface FilterOption {
 
 export interface FilterGroup {
   name: string;
+  kind?: "segmented" | "toggle";
   options: FilterOption[];
 }
 
 export function buildFilterGroups(
   filters: Filters,
   setFilter: (key: keyof Filters, value: Filters[keyof Filters]) => void,
-  vantage: CampusArea,
-  setVantage: (value: CampusArea) => void,
 ): FilterGroup[] {
   const chip = (active: boolean) =>
     active
@@ -25,17 +24,14 @@ export function buildFilterGroups(
 
   const groups: Array<{
     name: string;
-    key: keyof Filters;
+    kind?: "segmented" | "toggle";
+    key?: keyof Filters;
     opts: Array<[Filters[keyof Filters], string]>;
   }> = [
     {
-      name: "BUDGET",
-      key: "budget",
-      opts: [
-        ["free", "$0"],
-        ["u5", "Under $5"],
-        ["u10", "Under $10"],
-      ],
+      name: "",
+      kind: "toggle",
+      opts: [[filters.freeOnly as Filters[keyof Filters], "Free only"]],
     },
     {
       name: "WHEN",
@@ -46,48 +42,32 @@ export function buildFilterGroups(
         ["today", "Today"],
       ],
     },
-    {
-      name: "AREA",
-      key: "area",
-      opts: [
-        ["quad", "Quad"],
-        ["library", "Library"],
-        ["lower", "Lower Campus"],
-        ["anywhere", "Anywhere"],
-      ],
-    },
   ];
 
-  const filterGroups: FilterGroup[] = groups.map((group) => ({
+  return groups.map((group) => ({
     name: group.name,
+    kind: group.kind ?? "segmented",
     options: group.opts.map(([value, label]) => {
-      const active = filters[group.key] === value;
+      const active =
+        group.kind === "toggle"
+          ? filters.freeOnly
+          : group.key
+            ? filters[group.key] === value
+            : false;
       const colors = chip(active);
       return {
         label,
         ...colors,
-        onClick: () => setFilter(group.key, value),
+        onClick: () => {
+          if (group.kind === "toggle") {
+            setFilter("freeOnly", !filters.freeOnly);
+            return;
+          }
+          if (group.key) setFilter(group.key, value);
+        },
       };
     }),
   }));
-
-  // Vantage ("I'm near:") is independent of the Area filter — it only drives
-  // walk computation and walk-based sorting.
-  const vantageOpts: Array<[CampusArea, string]> = [
-    ["quad", "Quad"],
-    ["library", "Library"],
-    ["lower", "Lower Campus"],
-  ];
-
-  filterGroups.push({
-    name: "I'M NEAR",
-    options: vantageOpts.map(([value, label]) => {
-      const colors = chip(vantage === value);
-      return { label, ...colors, onClick: () => setVantage(value) };
-    }),
-  });
-
-  return filterGroups;
 }
 
 export const REPORT_TOAST: Record<string, string> = {
