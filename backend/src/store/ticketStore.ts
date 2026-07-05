@@ -16,6 +16,13 @@ import {
   generateTicketNumber,
   resolveLocation,
 } from "@mealmap/shared";
+import {
+  StorePersistence,
+  loadSnapshot,
+  resolveDataFile,
+  snapshotFromState,
+  type StoreSnapshot,
+} from "./storePersistence.js";
 
 export { SYSTEM_INGEST_USER };
 
@@ -27,14 +34,84 @@ interface StoreState {
 }
 
 const state: StoreState = {
-  tickets: structuredClone(SEED_TICKETS),
+  tickets: [],
   overrides: {},
   confirm: {},
   reports: [],
 };
 
-/** External event ids already ingested, for cross-run dedupe within a process. */
+/** External event ids already ingested, for cross-run dedupe. */
 const ingestedEventIds = new Set<string>();
+
+let persistence = new StorePersistence(null);
+let initialized = false;
+
+function seedOnBootEnabled(): boolean {
+  return process.env.SEED_ON_BOOT === "true";
+}
+
+function applySnapshot(snapshot: StoreSnapshot): void {
+  state.tickets = structuredClone(snapshot.tickets);
+  state.overrides = structuredClone(snapshot.overrides);
+  state.confirm = structuredClone(snapshot.confirm);
+  state.reports = structuredClone(snapshot.reports);
+  ingestedEventIds.clear();
+  for (const id of snapshot.ingestedEventIds) {
+    ingestedEventIds.add(id);
+  }
+}
+
+function freshState(useSeeds: boolean): void {
+  state.tickets = useSeeds ? structuredClone(SEED_TICKETS) : [];
+  state.overrides = {};
+  state.confirm = {};
+  state.reports = [];
+  ingestedEventIds.clear();
+}
+
+function currentSnapshot(): StoreSnapshot {
+  return snapshotFromState(state, ingestedEventIds);
+}
+
+function markDirty(): void {
+  persistence.schedule(currentSnapshot());
+}
+
+/**
+ * Load persisted state from disk on boot, or start fresh.
+ * Seeds are applied only on a fresh start when SEED_ON_BOOT=true (default off).
+ */
+export function initStore(options?: { force?: boolean }): void {
+  if (initialized && !options?.force) return;
+  initialized = true;
+
+  const filePath = resolveDataFile();
+  persistence = new StorePersistence(filePath);
+
+  if (filePath) {
+    const result = loadSnapshot(filePath);
+    if (result.ok) {
+      applySnapshot(result.snapshot);
+      console.log(
+        `[store] loaded ${state.tickets.length} tickets from ${filePath}`,
+      );
+      return;
+    }
+
+    console.warn(
+      `[store] could not load ${filePath} (${result.reason}) — starting fresh`,
+    );
+  }
+
+  freshState(seedOnBootEnabled());
+  if (seedOnBootEnabled()) {
+    console.log(`[store] seeded ${state.tickets.length} tickets (SEED_ON_BOOT=true)`);
+  }
+}
+
+export function flushPersist(): void {
+  persistence.flush();
+}
 
 export function listTickets(): Ticket[] {
   return [...state.tickets];
@@ -72,6 +149,7 @@ export function createTicket(
   };
 
   state.tickets.unshift(ticket);
+  markDirty();
   return ticket;
 }
 
@@ -134,6 +212,7 @@ export function insertAutoTicket(
   state.tickets.push(ticket);
   state.confirm[id] = { count: 0, last: "not yet confirmed" };
   if (input.eventId) ingestedEventIds.add(input.eventId);
+  markDirty();
 
   return { inserted: true, ticket };
 }
@@ -169,8 +248,6 @@ export function applyReport(
       if (ticket.trust === "unverified") {
         ticket.trust = "confirmed";
       }
-      // Crowd location pinning: a "still available" report can carry an optional
-      // "where exactly?" note. Only touch coords/where when they're still unknown.
       if (!ticket.coords) {
         const pin = locationText?.trim();
         if (pin) {
@@ -179,11 +256,9 @@ export function applyReport(
             ticket.coords = resolved.coords;
             ticket.where = resolved.name;
           } else {
-            // No match — still better than "location unconfirmed"; coords stay null.
             ticket.where = pin;
           }
         } else {
-          // No note given: try to pin from the existing where-text if it matches.
           const resolved = resolveLocation(ticket.where);
           if (resolved) ticket.coords = resolved.coords;
         }
@@ -216,14 +291,12 @@ export function applyReport(
     };
   }
 
+  markDirty();
   return record;
 }
 
 /** Reset store — used in tests only. */
-export function resetStore(): void {
-  state.tickets = structuredClone(SEED_TICKETS);
-  state.overrides = {};
-  state.confirm = {};
-  state.reports = [];
-  ingestedEventIds.clear();
+export function resetStore(options?: { seed?: boolean }): void {
+  persistence.cancel();
+  freshState(options?.seed ?? seedOnBootEnabled());
 }

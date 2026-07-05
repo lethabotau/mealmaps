@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { buildQuickAddTicket } from "@mealmap/shared";
 
 interface AddFoodModalProps {
@@ -18,6 +18,15 @@ export function AddFoodModal({ onClose, onSubmit, onFinish }: AddFoodModalProps)
   const [last, setLast] = useState("");
   const [done, setDone] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  // Close on Escape (unless a layer above, e.g. the sign-in overlay, consumed it).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !e.defaultPrevented) onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
 
   const pill = (active: boolean) =>
     active

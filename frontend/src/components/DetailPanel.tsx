@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { ReportKind, TicketView } from "@mealmap/shared";
 import { SYSTEM_INGEST_USER } from "@mealmap/shared";
 
@@ -22,6 +22,16 @@ export function DetailPanel({ ticket, toast, onClose, onReport }: DetailPanelPro
   const isUnverified = ticket.trust === "unverified";
   const needsLocation = ticket.coords == null;
   const [pinText, setPinText] = useState("");
+
+  // Close on Escape (unless a layer above, e.g. the sign-in overlay, consumed it).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !e.defaultPrevented) onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
   return (
     <>
       <div

@@ -62,6 +62,21 @@ interface AuthSignInOverlayProps {
 }
 
 export function AuthSignInOverlay({ open, onDismiss }: AuthSignInOverlayProps) {
+  // Escape dismisses. Capture phase + preventDefault so an underlying panel's
+  // own Escape handler (see DetailPanel/AddFoodModal) doesn't also close.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        onDismiss();
+      }
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [open, onDismiss]);
+
   if (!open) return null;
 
   return (
