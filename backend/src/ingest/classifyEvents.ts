@@ -3,7 +3,8 @@ import type { SocietyEvent } from "./fetchEvents.js";
 
 const MODEL = "claude-haiku-4-5";
 const MAX_TOKENS = 1500;
-const TEMPERATURE = 0.1;
+// Zero temperature: reproducible classification across identical event batches.
+const TEMPERATURE = 0;
 const TIMEOUT_MS = 10_000;
 const BATCH_SIZE = 15;
 

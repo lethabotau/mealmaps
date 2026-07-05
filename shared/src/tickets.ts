@@ -53,7 +53,7 @@ export const STATUS_LABELS: Record<TicketStatus, string> = {
 
 export const DEFAULT_FILTERS: Filters = {
   budget: "u10",
-  time: "now",
+  time: "today",
   area: "anywhere",
 };
 
@@ -69,6 +69,13 @@ export function worthRank(w: WorthLevel): number {
  */
 export function trustRank(ticket: Ticket): number {
   return ticket.trust === "unverified" ? 1 : 0;
+}
+
+/** Time proximity for ranking: sooner food sorts first (now < hour < today). */
+export function timeRank(t: TimeWindow): number {
+  if (t === "now") return 0;
+  if (t === "hour") return 1;
+  return 2;
 }
 
 export function effectiveStatus(
@@ -108,6 +115,9 @@ export function filterTickets(
 
     const worthDiff = worthRank(a.worth) - worthRank(b.worth);
     if (worthDiff !== 0) return worthDiff;
+
+    const timeDiff = timeRank(a.time) - timeRank(b.time);
+    if (timeDiff !== 0) return timeDiff;
 
     return a.walk - b.walk;
   });
