@@ -12,7 +12,8 @@ export type PendingAction =
   | { type: "add-food" }
   | { type: "report"; kind: ReportKind; locationText?: string }
   | { type: "paste-extract" }
-  | { type: "paste-submit" };
+  | { type: "paste-submit" }
+  | { type: "ask" };
 
 const PENDING_STORAGE_KEY = "mealmap:pending-action";
 const DISMISS_CLEAR_MS = 450;
@@ -25,6 +26,7 @@ function parsePending(raw: string): PendingAction | null {
     if (data.type === "report" && data.kind) return data;
     if (data.type === "paste-extract") return { type: "paste-extract" };
     if (data.type === "paste-submit") return { type: "paste-submit" };
+    if (data.type === "ask") return { type: "ask" };
   } catch {
     /* ignore corrupt storage */
   }

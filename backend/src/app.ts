@@ -1,6 +1,7 @@
 import cors from "cors";
 import express from "express";
 import { clerkAuthMiddleware } from "./auth/clerk.js";
+import { assistantRouter } from "./routes/assistant.js";
 import { extractRouter } from "./routes/extract.js";
 import { ingestRouter } from "./routes/ingest.js";
 import { ticketsRouter } from "./routes/tickets.js";
@@ -24,13 +25,20 @@ export function createApp() {
     res.json({
       name: "MealMap API",
       version: "0.1.0",
-      endpoints: ["/health", "/api/tickets", "/api/extract", "/api/ingest"],
+      endpoints: [
+        "/health",
+        "/api/tickets",
+        "/api/extract",
+        "/api/ingest",
+        "/api/assistant",
+      ],
     });
   });
 
   app.use("/api/tickets", ticketsRouter);
   app.use("/api/extract", extractRouter);
   app.use("/api/ingest", ingestRouter);
+  app.use("/api/assistant", assistantRouter);
 
   if (process.env.NODE_ENV === "production") {
     mountFrontendStatic(app);

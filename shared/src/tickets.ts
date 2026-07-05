@@ -1,4 +1,5 @@
 import type {
+  AssistantTicketContext,
   CampusArea,
   CreateTicketInput,
   ExtractedPost,
@@ -167,6 +168,37 @@ export function effectiveStatus(
   overrides: TicketOverrides = {},
 ): TicketStatus {
   return overrides[ticket.id] ?? ticket.status;
+}
+
+/**
+ * Reduce live tickets to the slim, answer-relevant shape the assistant model
+ * sees as grounding context. Applies crowd overrides so "gone" is reflected.
+ */
+export function ticketsForAssistant(
+  tickets: Ticket[],
+  overrides: TicketOverrides = {},
+  vantage: CampusArea = "upper",
+): AssistantTicketContext[] {
+  return tickets.map((ticket) => {
+    const showWalk = isOnCampus(ticket);
+    const walk = showWalk
+      ? computeWalk(areaVantage(vantage), ticket.coords)
+      : null;
+
+    return {
+      id: ticket.id,
+      name: ticket.name,
+      source: ticket.source,
+      cost: ticket.cost,
+      area: ticket.area,
+      walk,
+      where: whereDisplayFor(ticket),
+      ends: ticket.ends,
+      access: ticket.access,
+      worth: ticket.worth,
+      status: effectiveStatus(ticket, overrides),
+    };
+  });
 }
 
 export function filterTickets(

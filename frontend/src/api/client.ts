@@ -1,4 +1,5 @@
 import type {
+  AssistantResponse,
   CreateTicketInput,
   ExtractResult,
   ReportKind,
@@ -94,6 +95,13 @@ export function extractPost(text: string): Promise<ExtractResult> {
   return request<ExtractResult>("/api/extract", {
     method: "POST",
     body: JSON.stringify({ text }),
+  });
+}
+
+export function askAssistant(question: string): Promise<AssistantResponse> {
+  return request<AssistantResponse>("/api/assistant", {
+    method: "POST",
+    body: JSON.stringify({ question }),
   });
 }
 

@@ -42,6 +42,7 @@ export default function App() {
   const [toast, setToast] = useState("");
   const [pasteResumeToken, setPasteResumeToken] = useState(0);
   const [pasteExtractToken, setPasteExtractToken] = useState(0);
+  const [askResumeToken, setAskResumeToken] = useState(0);
 
   const handleReport = useCallback(
     async (kind: ReportKind, locationText?: string) => {
@@ -75,6 +76,11 @@ export default function App() {
       }
       if (action.type === "paste-submit") {
         setPasteResumeToken((token) => token + 1);
+        return;
+      }
+      if (action.type === "ask") {
+        setScreen("dashboard");
+        setAskResumeToken((token) => token + 1);
       }
     },
     [handleReport],
@@ -158,7 +164,10 @@ export default function App() {
             filterGroups={filterGroups}
             railPreview={railPreview}
             gridTickets={gridTickets}
+            allTickets={views}
             resultCount={views.length}
+            gate={gate}
+            askResumeToken={askResumeToken}
             onOpenAdd={openAddModal}
             onGoPaste={() => setScreen("paste")}
             onGoResults={() => setScreen("results")}

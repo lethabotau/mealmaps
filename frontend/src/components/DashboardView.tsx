@@ -1,5 +1,7 @@
 import type { CampusArea, TicketView } from "@mealmap/shared";
 import type { FilterGroup } from "../lib/uiHelpers";
+import type { PendingAction } from "../hooks/useAuthGate";
+import { AskMealMap } from "./AskMealMap";
 import { EmptyState } from "./EmptyState";
 import { NowServingBoard } from "./NowServingBoard";
 import { OrderSlipBar } from "./OrderSlipBar";
@@ -11,7 +13,10 @@ interface DashboardViewProps {
   filterGroups: FilterGroup[];
   railPreview: TicketView[];
   gridTickets: TicketView[];
+  allTickets: TicketView[];
   resultCount: number;
+  gate: (action: PendingAction, run: () => void | Promise<void>) => void;
+  askResumeToken?: number;
   onOpenAdd: () => void;
   onGoPaste: () => void;
   onGoResults: () => void;
@@ -25,7 +30,10 @@ export function DashboardView({
   filterGroups,
   railPreview,
   gridTickets,
+  allTickets,
   resultCount,
+  gate,
+  askResumeToken,
   onOpenAdd,
   onGoPaste,
   onGoResults,
@@ -62,6 +70,13 @@ export function DashboardView({
         vantage={vantage}
         onVantageChange={onVantageChange}
         filterGroups={filterGroups}
+      />
+
+      <AskMealMap
+        gate={gate}
+        tickets={allTickets}
+        onSelectTicket={onSelectTicket}
+        resumeToken={askResumeToken}
       />
 
       <div className="mm-section-head">

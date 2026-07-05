@@ -100,7 +100,33 @@ export interface Filters {
   time: "now" | "hour" | "today";
 }
 
-export type Screen = "dashboard" | "results" | "paste";
+export type Screen = "dashboard" | "results" | "paste" | "assistant";
+
+/** A user's spoken/typed question for the food assistant. */
+export interface AssistantRequest {
+  question: string;
+}
+
+/** The assistant's grounded answer plus the tickets it relied on. */
+export interface AssistantResponse {
+  answer: string;
+  citedTicketIds: string[];
+}
+
+/** Slim ticket shape sent to the model as grounding context. */
+export interface AssistantTicketContext {
+  id: string;
+  name: string;
+  source: string;
+  cost: number;
+  area: CampusArea;
+  walk: number | null;
+  where: string;
+  ends: string;
+  access: string;
+  worth: WorthLevel;
+  status: TicketStatus;
+}
 
 export interface ExtractedPost {
   food: string;
