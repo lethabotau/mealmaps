@@ -9,3 +9,4 @@ data/
 coverage/
 .vite/
 *.tsbuildinfo
+backend/data/
