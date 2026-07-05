@@ -6,7 +6,7 @@ Hackathon starter repo for finding free and cheap food on campus. This refactor 
 
 ```
 mealmap/
-├── frontend/          React + Vite UI (port 5173)
+├── frontend/          React + Vite UI (port 5174)
 ├── backend/           Express REST API (port 3001)
 ├── shared/            Types + business logic used by both sides
 └── legacy/            Original Claude Design export (reference only)
@@ -30,7 +30,13 @@ npm run build -w shared
 npm run dev
 ```
 
-Open **http://localhost:5173** — the Vite dev server proxies `/api` to the backend.
+Open **http://localhost:5174** — the Vite dev server proxies `/api` to the backend. Check the terminal for the exact port if 5174 is already in use.
+
+### Troubleshooting blank page
+
+1. **No `.env` files** — copy `frontend/.env.example` → `frontend/.env` and `backend/.env.example` → `backend/.env`, add your Clerk keys, restart dev.
+2. **Wrong port** — Vite prints the actual URL in the terminal (e.g. `5175` if `5174` is taken). Open that URL.
+3. **Backend down** — you'll see "Could not reach the MealMap backend" once Clerk is configured; run `npm run dev` from the `mealmaps/` folder.
 
 ## Scripts
 

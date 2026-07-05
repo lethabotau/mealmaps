@@ -1,3 +1,4 @@
+import { SignedIn, UserButton } from "@clerk/clerk-react";
 import type { Screen } from "@mealmap/shared";
 
 interface HeaderProps {
@@ -90,7 +91,14 @@ export function Header({
         </div>
       </div>
 
-      <nav style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "8px 6px" }}>
+      <nav
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          alignItems: "center",
+          gap: "8px 6px",
+        }}
+      >
         {(
           [
             ["DASHBOARD", onGoDash, "dashboard"],
@@ -119,6 +127,9 @@ export function Header({
         <button className="mm-btn-primary" onClick={onOpenAdd}>
           + FOUND FOOD
         </button>
+        <SignedIn>
+          <UserButton />
+        </SignedIn>
       </nav>
     </header>
   );

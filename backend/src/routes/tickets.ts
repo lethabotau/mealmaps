@@ -1,11 +1,13 @@
 import type { CreateTicketInput, ReportKind } from "@mealmap/shared";
 import { Router } from "express";
+import { requireWriteAuth, resolveAuthUser } from "../auth/clerk.js";
 import {
   applyReport,
   createTicket,
   getConfirmMeta,
   getOverrides,
   getTicket,
+  listReports,
   listTickets,
 } from "../store/ticketStore.js";
 
@@ -16,6 +18,7 @@ ticketsRouter.get("/", (_req, res) => {
     tickets: listTickets(),
     overrides: getOverrides(),
     confirm: getConfirmMeta(),
+    reports: listReports(),
   });
 });
 
@@ -30,11 +33,14 @@ ticketsRouter.get("/:id", (req, res) => {
     ticket,
     overrides: getOverrides(),
     confirm: getConfirmMeta(),
+    reports: listReports().filter((r) => r.ticketId === ticket.id),
   });
 });
 
-ticketsRouter.post("/", (req, res) => {
-  const body = req.body as Partial<CreateTicketInput>;
+ticketsRouter.post("/", requireWriteAuth, async (req, res) => {
+  const body = req.body as Partial<CreateTicketInput> & {
+    createdBy?: unknown;
+  };
 
   if (!body.name || !body.where || !body.ends || !body.access || !body.blurb) {
     res.status(400).json({
@@ -43,26 +49,37 @@ ticketsRouter.post("/", (req, res) => {
     return;
   }
 
-  const ticket = createTicket({
-    name: body.name,
-    source: body.source ?? "Student report",
-    cost: body.cost ?? 0,
-    area: body.area ?? "quad",
-    time: body.time,
-    walk: body.walk,
-    where: body.where,
-    ends: body.ends,
-    access: body.access,
-    worth: body.worth,
-    status: body.status,
-    blurb: body.blurb,
-  });
+  const createdBy = await resolveAuthUser(req);
+
+  const ticket = createTicket(
+    {
+      name: body.name,
+      source: body.source ?? "Student report",
+      cost: body.cost ?? 0,
+      area: body.area ?? "quad",
+      time: body.time,
+      walk: body.walk,
+      where: body.where,
+      ends: body.ends,
+      access: body.access,
+      worth: body.worth,
+      status: body.status,
+      blurb: body.blurb,
+    },
+    createdBy,
+  );
 
   res.status(201).json({ ticket });
 });
 
-ticketsRouter.post("/:id/report", (req, res) => {
-  const ticket = getTicket(req.params.id);
+ticketsRouter.post("/:id/report", requireWriteAuth, async (req, res) => {
+  const ticketId = req.params.id;
+  if (!ticketId || Array.isArray(ticketId)) {
+    res.status(400).json({ error: "Invalid ticket id" });
+    return;
+  }
+
+  const ticket = getTicket(ticketId);
   if (!ticket) {
     res.status(404).json({ error: "Ticket not found" });
     return;
@@ -75,9 +92,12 @@ ticketsRouter.post("/:id/report", (req, res) => {
     return;
   }
 
-  applyReport(ticket.id, kind);
+  const reportedBy = await resolveAuthUser(req);
+  const report = applyReport(ticket.id, kind, reportedBy);
+
   res.json({
     overrides: getOverrides(),
     confirm: getConfirmMeta(),
+    report,
   });
 });

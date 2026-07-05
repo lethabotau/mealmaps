@@ -1,9 +1,11 @@
 import type {
   CreateTicketInput,
   ReportKind,
+  ReportRecord,
   Ticket,
   TicketConfirmMeta,
   TicketOverrides,
+  UserIdentity,
 } from "@mealmap/shared";
 import {
   SEED_TICKETS,
@@ -15,12 +17,14 @@ interface StoreState {
   tickets: Ticket[];
   overrides: TicketOverrides;
   confirm: Record<string, TicketConfirmMeta>;
+  reports: ReportRecord[];
 }
 
 const state: StoreState = {
   tickets: structuredClone(SEED_TICKETS),
   overrides: {},
   confirm: {},
+  reports: [],
 };
 
 export function listTickets(): Ticket[] {
@@ -31,7 +35,14 @@ export function getTicket(id: string): Ticket | undefined {
   return state.tickets.find((ticket) => ticket.id === id);
 }
 
-export function createTicket(input: CreateTicketInput): Ticket {
+export function listReports(): ReportRecord[] {
+  return [...state.reports];
+}
+
+export function createTicket(
+  input: CreateTicketInput,
+  createdBy: UserIdentity,
+): Ticket {
   const ticket: Ticket = {
     id: createTicketId("u"),
     no: generateTicketNumber(),
@@ -48,6 +59,7 @@ export function createTicket(input: CreateTicketInput): Ticket {
     worth: input.worth ?? "maybe",
     status: input.status ?? "available",
     blurb: input.blurb,
+    createdBy,
   };
 
   state.tickets.unshift(ticket);
@@ -62,27 +74,51 @@ export function getConfirmMeta(): Record<string, TicketConfirmMeta> {
   return { ...state.confirm };
 }
 
-export function applyReport(id: string, kind: ReportKind): void {
+export function applyReport(
+  id: string,
+  kind: ReportKind,
+  reportedBy: UserIdentity,
+): ReportRecord {
   const current = state.confirm[id] ?? { count: 3, last: "4 min ago" };
+  const record: ReportRecord = {
+    id: `r${Date.now()}`,
+    ticketId: id,
+    kind,
+    reportedBy,
+    createdAt: new Date().toISOString(),
+  };
+
+  state.reports.unshift(record);
 
   if (kind === "still") {
-    state.confirm[id] = { count: current.count + 1, last: "just now" };
-    return;
-  }
-
-  if (kind === "gone") {
+    state.confirm[id] = {
+      count: current.count + 1,
+      last: "just now",
+      lastReportedBy: reportedBy,
+    };
+  } else if (kind === "gone") {
     state.overrides[id] = "gone";
-    state.confirm[id] = { ...current, last: "just now" };
-    return;
-  }
-
-  if (kind === "all") {
+    state.confirm[id] = {
+      ...current,
+      last: "just now",
+      lastReportedBy: reportedBy,
+    };
+  } else if (kind === "all") {
     state.overrides[id] = "available";
-    state.confirm[id] = { ...current, last: "just now" };
-    return;
+    state.confirm[id] = {
+      ...current,
+      last: "just now",
+      lastReportedBy: reportedBy,
+    };
+  } else {
+    state.confirm[id] = {
+      ...current,
+      last: "just now",
+      lastReportedBy: reportedBy,
+    };
   }
 
-  state.confirm[id] = { ...current, last: "just now" };
+  return record;
 }
 
 /** Reset store — used in tests only. */
@@ -90,4 +126,5 @@ export function resetStore(): void {
   state.tickets = structuredClone(SEED_TICKETS);
   state.overrides = {};
   state.confirm = {};
+  state.reports = [];
 }

@@ -10,8 +10,10 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@clerk/express": "^2.1.35",
     "@mealmap/shared": "*",
     "cors": "^2.8.5",
+    "dotenv": "^17.4.2",
     "express": "^4.21.2"
   },
   "devDependencies": {
