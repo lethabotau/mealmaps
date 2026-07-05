@@ -155,6 +155,7 @@ export function createTicket(
     blurb: input.blurb,
     createdBy,
     dietary: input.dietary,
+    confirmedAt: new Date().toISOString(),
   };
 
   state.tickets.unshift(ticket);
@@ -264,6 +265,7 @@ export function insertAutoTicket(
     foodLikelihood: input.foodLikelihood,
     classifyReason: input.classifyReason,
     dietary: input.dietary,
+    confirmedAt: new Date().toISOString(),
   };
 
   state.tickets.push(ticket);
@@ -302,6 +304,7 @@ export function applyReport(
   if (kind === "still") {
     const ticket = state.tickets.find((t) => t.id === id);
     if (ticket) {
+      ticket.confirmedAt = new Date().toISOString();
       if (ticket.trust === "unverified") {
         ticket.trust = "confirmed";
       }

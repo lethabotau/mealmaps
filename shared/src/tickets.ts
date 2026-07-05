@@ -205,6 +205,53 @@ export function worthRank(w: WorthLevel): number {
   return 2;
 }
 
+const FRESHNESS_FULL_MS = 15 * 60 * 1000;
+const FRESHNESS_FLOOR_MS = 90 * 60 * 1000;
+const FRESHNESS_FLOOR = 0.3;
+
+/**
+ * 1 (just confirmed) decaying linearly to a 0.3 floor by 90 minutes old.
+ * Unknown age (`confirmedAt` absent) is treated as fully fresh — decay only
+ * applies once we actually know how old a confirmation is.
+ */
+export function freshnessScore(ticket: Ticket, nowMs: number = Date.now()): number {
+  if (!ticket.confirmedAt) return 1;
+  const ageMs = nowMs - Date.parse(ticket.confirmedAt);
+  if (!Number.isFinite(ageMs) || ageMs <= FRESHNESS_FULL_MS) return 1;
+  if (ageMs >= FRESHNESS_FLOOR_MS) return FRESHNESS_FLOOR;
+  const span = FRESHNESS_FLOOR_MS - FRESHNESS_FULL_MS;
+  const progress = (ageMs - FRESHNESS_FULL_MS) / span;
+  return 1 - progress * (1 - FRESHNESS_FLOOR);
+}
+
+/**
+ * `worth` after time-decay: a stale, imminent ("now"/"hour") ticket that was
+ * rated "high" slides to "maybe" as its confirmation ages — it never
+ * upgrades, and "low"/"today" tickets are left alone (nothing to decay into,
+ * or not imminent enough for staleness to matter).
+ */
+export function decayedWorth(ticket: Ticket, nowMs: number = Date.now()): WorthLevel {
+  if (ticket.worth !== "high") return ticket.worth;
+  if (ticket.time === "today") return ticket.worth;
+  return freshnessScore(ticket, nowMs) < 0.5 ? "maybe" : ticket.worth;
+}
+
+const MINUTE_MS = 60 * 1000;
+
+/** "last confirmed X min ago" from `confirmedAt`, or undefined if unknown. */
+export function freshnessLabelFor(
+  ticket: Ticket,
+  nowMs: number = Date.now(),
+): string | undefined {
+  if (!ticket.confirmedAt) return undefined;
+  const ageMs = nowMs - Date.parse(ticket.confirmedAt);
+  if (!Number.isFinite(ageMs) || ageMs < 0) return undefined;
+  const minutes = Math.round(ageMs / MINUTE_MS);
+  if (minutes < 1) return "last confirmed just now";
+  if (minutes === 1) return "last confirmed 1 min ago";
+  return `last confirmed ${minutes} min ago`;
+}
+
 /**
  * Trust tier for ranking: confirmed (or absent = human) sorts above unverified
  * (auto-ingested) tickets.
@@ -298,7 +345,7 @@ export function filterTickets(
     const bGone = effectiveStatus(b, overrides) === "gone" ? 1 : 0;
     if (aGone !== bGone) return aGone - bGone;
 
-    const worthDiff = worthRank(a.worth) - worthRank(b.worth);
+    const worthDiff = worthRank(decayedWorth(a)) - worthRank(decayedWorth(b));
     if (worthDiff !== 0) return worthDiff;
 
     const timeDiff = timeRank(a.time) - timeRank(b.time);
@@ -307,7 +354,11 @@ export function filterTickets(
     const campusDiff = onCampusRank(a) - onCampusRank(b);
     if (campusDiff !== 0) return campusDiff;
 
-    return walkKey(a) - walkKey(b);
+    const walkDiff = walkKey(a) - walkKey(b);
+    if (walkDiff !== 0) return walkDiff;
+
+    // Last-resort tiebreak: fresher confirmations sort first.
+    return freshnessScore(b) - freshnessScore(a);
   });
 }
 
@@ -328,6 +379,7 @@ export function toTicketView(
     ? computeWalk(areaVantage(vantage), ticket.coords)
     : null;
   const cost = costDisplayFor(ticket.cost, ticket.sourcePrice);
+  const worth = decayedWorth(ticket);
 
   return {
     ...ticket,
@@ -345,12 +397,14 @@ export function toTicketView(
     endsColor: timeLine.color,
     costLabel: cost.label,
     costColor: cost.color,
-    worthLabel: WORTH_LABELS[ticket.worth],
-    worthColor: WORTH_COLORS[ticket.worth],
+    worthLabel: WORTH_LABELS[worth],
+    worthColor: WORTH_COLORS[worth],
+    effectiveWorth: worth,
     statusLabel: STATUS_LABELS[status],
     statusColor: STATUS_COLORS[status],
     confirmCount: meta?.count ?? 3,
     lastChecked: meta?.last ?? "4 min ago",
+    freshnessLabel: freshnessLabelFor(ticket),
   };
 }
 

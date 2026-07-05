@@ -38,6 +38,7 @@ function stub(id: string): TicketView {
     confirmCount: 0,
     lastChecked: "now",
     effectiveStatus: "available",
+    effectiveWorth: "maybe",
   };
 }
 

@@ -371,6 +371,7 @@ export function DetailPanel({ ticket, toast, onClose, onReport }: DetailPanelPro
             >
               Confirmed by {ticket.confirmCount} students · last checked{" "}
               {ticket.lastChecked}
+              {ticket.freshnessLabel && ` · ${ticket.freshnessLabel}`}
             </div>
           </div>
 

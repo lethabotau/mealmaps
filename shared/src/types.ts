@@ -107,6 +107,12 @@ export interface Ticket {
   classifyReason?: string;
   /** Dietary tags/allergens. Absent = never checked (shown as unconfirmed). */
   dietary?: TicketDietary;
+  /**
+   * ISO 8601 timestamp of creation or last crowd "still available" report.
+   * Absent means unknown age — treated as fresh, never decayed. Drives
+   * {@link TicketView.effectiveWorth} time-decay and the freshness sort tiebreak.
+   */
+  confirmedAt?: string;
 }
 
 export interface TicketConfirmMeta {
@@ -281,6 +287,10 @@ export interface TicketView extends Ticket {
   confirmCount: number;
   lastChecked: string;
   effectiveStatus: TicketStatus;
+  /** `worth` after time-decay (see `decayedWorth`) — use this for display, not `worth`. */
+  effectiveWorth: WorthLevel;
+  /** "last confirmed X min ago", computed from `confirmedAt` when known. */
+  freshnessLabel?: string;
 }
 
 export interface RankedTicketView extends TicketView {
