@@ -1,4 +1,5 @@
 import type {
+  AssistantResponse,
   CreateTicketInput,
   ReportKind,
   ReportRecord,
@@ -65,6 +66,13 @@ export function reportTicket(
   return request(`/api/tickets/${id}/report`, {
     method: "POST",
     body: JSON.stringify({ kind }),
+  });
+}
+
+export function askAssistant(question: string): Promise<AssistantResponse> {
+  return request<AssistantResponse>("/api/assistant", {
+    method: "POST",
+    body: JSON.stringify({ question }),
   });
 }
 

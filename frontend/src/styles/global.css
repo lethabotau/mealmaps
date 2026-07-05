@@ -145,3 +145,132 @@ input:focus {
   border-radius: 12px;
   box-shadow: 4px 4px 0 rgba(27, 23, 18, 0.85);
 }
+
+/* --- Voice assistant sphere --- */
+@keyframes mm-orb-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.04);
+  }
+}
+
+@keyframes mm-orb-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.12);
+  }
+}
+
+@keyframes mm-orb-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes mm-orb-speak {
+  0%,
+  100% {
+    transform: scale(1) translateY(0);
+  }
+  30% {
+    transform: scale(1.08) translateY(-2px);
+  }
+  60% {
+    transform: scale(0.97) translateY(1px);
+  }
+}
+
+@keyframes mm-ring-out {
+  from {
+    transform: scale(0.9);
+    opacity: 0.55;
+  }
+  to {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+}
+
+.mm-orb {
+  position: relative;
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  background: radial-gradient(
+    circle at 32% 28%,
+    #ff9a7a 0%,
+    var(--mm-accent) 45%,
+    #a52a12 100%
+  );
+  box-shadow:
+    0 0 0 4px var(--mm-ink),
+    6px 8px 0 rgba(27, 23, 18, 0.85),
+    inset -8px -10px 24px rgba(0, 0, 0, 0.35),
+    inset 6px 8px 20px rgba(255, 255, 255, 0.4);
+  animation: mm-orb-breathe 3.6s ease-in-out infinite;
+}
+
+.mm-orb::after {
+  content: "";
+  position: absolute;
+  inset: -14px;
+  border-radius: 50%;
+  border: 3px solid var(--mm-accent);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.mm-orb:hover {
+  filter: brightness(1.05);
+}
+
+.mm-orb.is-listening {
+  animation: mm-orb-pulse 0.9s ease-in-out infinite;
+}
+.mm-orb.is-listening::after {
+  animation: mm-ring-out 1.1s ease-out infinite;
+}
+
+.mm-orb.is-thinking {
+  animation: mm-orb-spin 1.6s linear infinite;
+  background: conic-gradient(
+    from 0deg,
+    var(--mm-accent),
+    #ff9a7a,
+    #a52a12,
+    var(--mm-accent)
+  );
+}
+
+.mm-orb.is-speaking {
+  animation: mm-orb-speak 0.5s ease-in-out infinite;
+}
+
+.mm-orb.is-error {
+  background: radial-gradient(circle at 32% 28%, #d98b7c 0%, #8a2e1c 100%);
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mm-orb,
+  .mm-orb.is-listening,
+  .mm-orb.is-thinking,
+  .mm-orb.is-speaking {
+    animation: none;
+  }
+  .mm-orb.is-listening::after {
+    animation: none;
+  }
+}

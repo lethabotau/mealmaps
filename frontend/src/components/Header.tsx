@@ -6,6 +6,7 @@ interface HeaderProps {
   onGoDash: () => void;
   onGoResults: () => void;
   onGoPaste: () => void;
+  onGoAssistant: () => void;
   onOpenAdd: () => void;
 }
 
@@ -14,6 +15,7 @@ export function Header({
   onGoDash,
   onGoResults,
   onGoPaste,
+  onGoAssistant,
   onOpenAdd,
 }: HeaderProps) {
   const navColor = (target: Screen) =>
@@ -104,6 +106,7 @@ export function Header({
             ["DASHBOARD", onGoDash, "dashboard"],
             ["RANKED", onGoResults, "results"],
             ["PASTE POST", onGoPaste, "paste"],
+            ["ASK", onGoAssistant, "assistant"],
           ] as const
         ).map(([label, onClick, target]) => (
           <button

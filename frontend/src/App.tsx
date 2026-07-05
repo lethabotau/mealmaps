@@ -12,6 +12,7 @@ import {
 } from "@mealmap/shared";
 import { configureAuthTokenGetter } from "./api/auth";
 import { AddFoodModal } from "./components/AddFoodModal";
+import { AssistantView } from "./components/AssistantView";
 import { DashboardView } from "./components/DashboardView";
 import { DetailPanel } from "./components/DetailPanel";
 import { Header } from "./components/Header";
@@ -65,6 +66,10 @@ export default function App() {
       }
       if (action.type === "paste-submit") {
         setPasteResumeToken((token) => token + 1);
+        return;
+      }
+      if (action.type === "ask") {
+        setScreen("assistant");
       }
     },
     [handleReport],
@@ -138,6 +143,7 @@ export default function App() {
           onGoDash={() => setScreen("dashboard")}
           onGoResults={() => setScreen("results")}
           onGoPaste={() => setScreen("paste")}
+          onGoAssistant={() => setScreen("assistant")}
           onOpenAdd={openAddModal}
         />
 
@@ -184,6 +190,17 @@ export default function App() {
               await gate({ type: "paste-submit" }, () =>
                 handlePostFromPaste(extracted),
               );
+            }}
+          />
+        )}
+
+        {screen === "assistant" && (
+          <AssistantView
+            gate={gate}
+            tickets={views}
+            onSelectTicket={(id) => {
+              setDetailId(id);
+              setToast("");
             }}
           />
         )}
