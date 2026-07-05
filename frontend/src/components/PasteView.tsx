@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { ExtractedPost } from "@mealmap/shared";
-import { buildTicketFromExtracted, extractFromPost } from "@mealmap/shared";
+import { extractFromPost } from "@mealmap/shared";
 
 const SAMPLE_POST =
   "CS Club Sponsor Night is TONIGHT! Free pizza in Quad 1043 from 6pm to 8pm. Open to all students, first come first served. No RSVP needed.";
@@ -8,9 +8,14 @@ const SAMPLE_POST =
 interface PasteViewProps {
   onGoDash: () => void;
   onPostTicket: (extracted: ExtractedPost) => Promise<void>;
+  resumeSubmitToken?: number;
 }
 
-export function PasteView({ onGoDash, onPostTicket }: PasteViewProps) {
+export function PasteView({
+  onGoDash,
+  onPostTicket,
+  resumeSubmitToken = 0,
+}: PasteViewProps) {
   const [pasteText, setPasteText] = useState(SAMPLE_POST);
   const [extracted, setExtracted] = useState<ExtractedPost | null>(null);
   const [posted, setPosted] = useState(false);
@@ -21,7 +26,7 @@ export function PasteView({ onGoDash, onPostTicket }: PasteViewProps) {
     setPosted(false);
   };
 
-  const postPaste = async () => {
+  const postPaste = useCallback(async () => {
     if (!extracted) return;
     setPosting(true);
     try {
@@ -30,7 +35,12 @@ export function PasteView({ onGoDash, onPostTicket }: PasteViewProps) {
     } finally {
       setPosting(false);
     }
-  };
+  }, [extracted, onPostTicket]);
+
+  useEffect(() => {
+    if (!resumeSubmitToken || !extracted || posted) return;
+    void postPaste();
+  }, [resumeSubmitToken, extracted, posted, postPaste]);
 
   return (
     <section className="mm-fade-up">
@@ -301,6 +311,3 @@ export function PasteView({ onGoDash, onPostTicket }: PasteViewProps) {
     </section>
   );
 }
-
-/** Helper used by App when posting from paste view. */
-export { buildTicketFromExtracted };

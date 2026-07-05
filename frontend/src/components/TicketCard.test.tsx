@@ -21,6 +21,7 @@ describe("TicketCard", () => {
       worth: "high",
       status: "available",
       blurb: "Test blurb",
+      createdBy: { userId: "seed_test", displayName: "Test Seed" },
     });
 
     render(<TicketCard ticket={ticket} onClick={() => {}} />);

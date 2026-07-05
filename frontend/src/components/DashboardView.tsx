@@ -77,20 +77,23 @@ export function DashboardView({
             onClick={onOpenAdd}
             style={{
               fontFamily: "Archivo",
-              fontWeight: 900,
-              fontSize: 17,
-              letterSpacing: "0.3px",
-              background: "#E5431E",
-              color: "#FBF7EE",
+              fontWeight: 800,
+              fontSize: 15,
+              letterSpacing: "0.2px",
+              lineHeight: 1.25,
+              textAlign: "left",
+              background: "#FBF7EE",
+              color: "#1B1712",
               border: "3px solid #1B1712",
               borderRadius: "11px 8px 11px 8px",
               boxShadow: "5px 5px 0 rgba(27,23,18,0.88)",
               cursor: "pointer",
-              padding: "15px 22px",
+              padding: "13px 20px",
               transform: "rotate(-2deg)",
+              maxWidth: 240,
             }}
           >
-            + FOUND FOOD
+            Spotted food? Add it in 10 seconds
           </button>
           <button
             onClick={onGoPaste}

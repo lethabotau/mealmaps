@@ -11,6 +11,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@clerk/clerk-react": "^5.61.8",
     "@mealmap/shared": "*",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"

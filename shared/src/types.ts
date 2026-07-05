@@ -10,6 +10,11 @@ export type TicketStatus = "available" | "maybe" | "gone";
 /** How worth-it the walk is, based on cost, distance, and freshness. */
 export type WorthLevel = "high" | "maybe" | "low";
 
+export interface UserIdentity {
+  userId: string;
+  displayName: string;
+}
+
 export interface Ticket {
   id: string;
   no: string;
@@ -26,11 +31,23 @@ export interface Ticket {
   worth: WorthLevel;
   status: TicketStatus;
   blurb: string;
+  createdBy: UserIdentity;
 }
 
 export interface TicketConfirmMeta {
   count: number;
   last: string;
+  lastReportedBy?: UserIdentity;
+}
+
+export type ReportKind = "still" | "gone" | "queue" | "members" | "all";
+
+export interface ReportRecord {
+  id: string;
+  ticketId: string;
+  kind: ReportKind;
+  reportedBy: UserIdentity;
+  createdAt: string;
 }
 
 export interface TicketOverrides {
@@ -74,8 +91,6 @@ export interface CreateTicketInput {
   status?: TicketStatus;
   blurb: string;
 }
-
-export type ReportKind = "still" | "gone" | "queue" | "members" | "all";
 
 export interface TicketView extends Ticket {
   costLabel: string;

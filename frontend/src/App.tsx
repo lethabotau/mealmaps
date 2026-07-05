@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useAuth } from "@clerk/clerk-react";
 import {
   DEFAULT_FILTERS,
   buildTicketFromExtracted,
@@ -9,16 +10,23 @@ import {
   type ReportKind,
   type Screen,
 } from "@mealmap/shared";
+import { configureAuthTokenGetter } from "./api/auth";
 import { AddFoodModal } from "./components/AddFoodModal";
 import { DashboardView } from "./components/DashboardView";
 import { DetailPanel } from "./components/DetailPanel";
 import { Header } from "./components/Header";
 import { PasteView } from "./components/PasteView";
 import { RankedView } from "./components/RankedView";
+import {
+  type PendingAction,
+  AuthSignInOverlay,
+  useAuthGate,
+} from "./hooks/useAuthGate";
 import { useTickets } from "./hooks/useTickets";
 import { REPORT_TOAST, buildFilterGroups } from "./lib/uiHelpers";
 
 export default function App() {
+  const { getToken } = useAuth();
   const { tickets, overrides, confirm, loading, error, addTicket, submitReport } =
     useTickets();
 
@@ -27,6 +35,46 @@ export default function App() {
   const [detailId, setDetailId] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [toast, setToast] = useState("");
+  const [pasteResumeToken, setPasteResumeToken] = useState(0);
+
+  const handleReport = useCallback(
+    async (kind: ReportKind) => {
+      if (!detailId) return;
+      await submitReport(detailId, kind);
+      setToast(REPORT_TOAST[kind] ?? "Thanks for the update!");
+    },
+    [detailId, submitReport],
+  );
+
+  const handlePostFromPaste = useCallback(
+    async (extracted: ExtractedPost) => {
+      await addTicket(buildTicketFromExtracted(extracted));
+    },
+    [addTicket],
+  );
+
+  const handleResume = useCallback(
+    (action: PendingAction) => {
+      if (action.type === "add-food") {
+        setModalOpen(true);
+        return;
+      }
+      if (action.type === "report") {
+        void handleReport(action.kind);
+        return;
+      }
+      if (action.type === "paste-submit") {
+        setPasteResumeToken((token) => token + 1);
+      }
+    },
+    [handleReport],
+  );
+
+  const { gate, signInOpen, closeSignIn } = useAuthGate(handleResume);
+
+  useEffect(() => {
+    configureAuthTokenGetter(() => getToken());
+  }, [getToken]);
 
   const filtered = useMemo(
     () => filterTickets(tickets, filters, overrides),
@@ -55,15 +103,8 @@ export default function App() {
     ? views.find((view) => view.id === detailId) ?? null
     : null;
 
-  const handleReport = async (kind: ReportKind) => {
-    if (!detailId) return;
-    await submitReport(detailId, kind);
-    setToast(REPORT_TOAST[kind] ?? "Thanks for the update!");
-  };
-
-  const handlePostFromPaste = async (extracted: ExtractedPost) => {
-    await addTicket(buildTicketFromExtracted(extracted));
-  };
+  const openAddModal = () =>
+    gate({ type: "add-food" }, () => setModalOpen(true));
 
   if (loading) {
     return (
@@ -90,13 +131,14 @@ export default function App() {
 
   return (
     <div className="mm-page">
+      <AuthSignInOverlay open={signInOpen} onDismiss={closeSignIn} />
       <div className="mm-container">
         <Header
           screen={screen}
           onGoDash={() => setScreen("dashboard")}
           onGoResults={() => setScreen("results")}
           onGoPaste={() => setScreen("paste")}
-          onOpenAdd={() => setModalOpen(true)}
+          onOpenAdd={openAddModal}
         />
 
         {screen === "dashboard" && (
@@ -104,7 +146,7 @@ export default function App() {
             filterGroups={filterGroups}
             bestTickets={views.slice(0, 3)}
             resultCount={views.length}
-            onOpenAdd={() => setModalOpen(true)}
+            onOpenAdd={openAddModal}
             onGoPaste={() => setScreen("paste")}
             onGoResults={() => setScreen("results")}
             onClearFilters={() =>
@@ -126,7 +168,7 @@ export default function App() {
             onClearFilters={() =>
               setFilters({ budget: "u10", time: "today", area: "anywhere" })
             }
-            onOpenAdd={() => setModalOpen(true)}
+            onOpenAdd={openAddModal}
             onSelectTicket={(id) => {
               setDetailId(id);
               setToast("");
@@ -137,7 +179,12 @@ export default function App() {
         {screen === "paste" && (
           <PasteView
             onGoDash={() => setScreen("dashboard")}
-            onPostTicket={handlePostFromPaste}
+            resumeSubmitToken={pasteResumeToken}
+            onPostTicket={async (extracted) => {
+              await gate({ type: "paste-submit" }, () =>
+                handlePostFromPaste(extracted),
+              );
+            }}
           />
         )}
       </div>
@@ -147,7 +194,9 @@ export default function App() {
           ticket={detailTicket}
           toast={toast}
           onClose={() => setDetailId(null)}
-          onReport={(kind) => void handleReport(kind)}
+          onReport={(kind) =>
+            gate({ type: "report", kind }, () => void handleReport(kind))
+          }
         />
       )}
 

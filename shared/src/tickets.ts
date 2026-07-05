@@ -11,6 +11,7 @@ import type {
   TimeWindow,
   WorthLevel,
 } from "./types.js";
+import { SEED_AUTHORS } from "./seedUsers.js";
 
 export const WORTH_COLORS: Record<WorthLevel, string> = {
   high: "#3C7A45",
@@ -298,6 +299,7 @@ export const SEED_TICKETS: Ticket[] = [
     status: "available",
     blurb:
       "Sponsor bought 40 pies for the info session. Grab a slice at the back tables — no sign-in checked at the door.",
+    createdBy: SEED_AUTHORS.csClub,
   },
   {
     id: "t2",
@@ -316,6 +318,7 @@ export const SEED_TICKETS: Ticket[] = [
     status: "available",
     blurb:
       "Morning mixer spread. Fresh bagels, cream cheese, and a full coffee urn. Closest free food to the main study floors.",
+    createdBy: SEED_AUTHORS.physics,
   },
   {
     id: "t7",
@@ -334,6 +337,7 @@ export const SEED_TICKETS: Ticket[] = [
     status: "available",
     blurb:
       "Finals-week snack station: granola bars, clementines, pretzels. Restocked on the hour by front-desk staff.",
+    createdBy: SEED_AUTHORS.library,
   },
   {
     id: "t3",
@@ -352,6 +356,7 @@ export const SEED_TICKETS: Ticket[] = [
     status: "available",
     blurb:
       "Co-op fundraiser griddle. Two bucks, cash in the jar. Worth it if you were already headed to Lower Campus.",
+    createdBy: SEED_AUTHORS.coop,
   },
   {
     id: "t4",
@@ -370,6 +375,7 @@ export const SEED_TICKETS: Ticket[] = [
     status: "maybe",
     blurb:
       "Boxed sandwiches left over from the recruiter lunch. Going fast — last confirmed count was about a dozen.",
+    createdBy: SEED_AUTHORS.career,
   },
   {
     id: "t6",
@@ -388,6 +394,7 @@ export const SEED_TICKETS: Ticket[] = [
     status: "available",
     blurb:
       "Full taco bar tonight. Five dollars gets you a plate and a drink. Long walk, but a real meal — not just snacks.",
+    createdBy: SEED_AUTHORS.lsu,
   },
   {
     id: "t5",
@@ -406,6 +413,7 @@ export const SEED_TICKETS: Ticket[] = [
     status: "gone",
     blurb:
       "Tabling giveaway that just wrapped. Box was reported empty a minute ago — skip it unless you are already passing by.",
+    createdBy: SEED_AUTHORS.sigma,
   },
 ];
 
