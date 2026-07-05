@@ -5,13 +5,18 @@ import type {
   Ticket,
   TicketConfirmMeta,
   TicketOverrides,
+  TimeWindow,
   UserIdentity,
+  WorthLevel,
 } from "@mealmap/shared";
 import {
   SEED_TICKETS,
+  SYSTEM_INGEST_USER,
   createTicketId,
   generateTicketNumber,
 } from "@mealmap/shared";
+
+export { SYSTEM_INGEST_USER };
 
 interface StoreState {
   tickets: Ticket[];
@@ -26,6 +31,9 @@ const state: StoreState = {
   confirm: {},
   reports: [],
 };
+
+/** External event ids already ingested, for cross-run dedupe within a process. */
+const ingestedEventIds = new Set<string>();
 
 export function listTickets(): Ticket[] {
   return [...state.tickets];
@@ -66,6 +74,69 @@ export function createTicket(
   return ticket;
 }
 
+/** True once at least one auto-ingested ticket exists (used to gate boot ingest). */
+export function hasAutoTickets(): boolean {
+  return state.tickets.some(
+    (ticket) => ticket.createdBy.userId === SYSTEM_INGEST_USER.userId,
+  );
+}
+
+export interface AutoTicketInput {
+  eventId: string;
+  name: string;
+  /** Origin society, surfaced as "via MealMap Auto · <society>". */
+  society: string;
+  cost: number;
+  time: TimeWindow;
+  /** Intra-tier ranking hint derived from food likelihood (high vs maybe). */
+  worth: WorthLevel;
+  ends: string;
+  sourceUrl: string;
+  blurb: string;
+}
+
+/**
+ * Inserts an auto-ingested ticket in the `unverified` trust tier so it ranks
+ * below every human (confirmed) ticket regardless of worth. `source` carries the
+ * society name for display; `createdBy` marks it as system-ingested.
+ * Dedupes by external `eventId`; returns `inserted: false` if already ingested.
+ */
+export function insertAutoTicket(
+  input: AutoTicketInput,
+): { inserted: boolean; ticket?: Ticket } {
+  if (input.eventId && ingestedEventIds.has(input.eventId)) {
+    return { inserted: false };
+  }
+
+  const id = input.eventId ? `auto-${input.eventId}` : createTicketId("t");
+  const ticket: Ticket = {
+    id,
+    no: generateTicketNumber(),
+    name: input.name,
+    source: input.society || "UNSW society",
+    cost: input.cost,
+    area: "quad",
+    time: input.time,
+    walk: 15,
+    where: "location unconfirmed",
+    ends: input.ends,
+    access: "check event page",
+    confirmed: "not yet confirmed",
+    worth: input.worth,
+    status: "available",
+    blurb: input.blurb,
+    createdBy: SYSTEM_INGEST_USER,
+    sourceUrl: input.sourceUrl,
+    trust: "unverified",
+  };
+
+  state.tickets.push(ticket);
+  state.confirm[id] = { count: 0, last: "not yet confirmed" };
+  if (input.eventId) ingestedEventIds.add(input.eventId);
+
+  return { inserted: true, ticket };
+}
+
 export function getOverrides(): TicketOverrides {
   return { ...state.overrides };
 }
@@ -91,6 +162,10 @@ export function applyReport(
   state.reports.unshift(record);
 
   if (kind === "still") {
+    const ticket = state.tickets.find((t) => t.id === id);
+    if (ticket && ticket.trust === "unverified") {
+      ticket.trust = "confirmed";
+    }
     state.confirm[id] = {
       count: current.count + 1,
       last: "just now",
@@ -127,4 +202,5 @@ export function resetStore(): void {
   state.overrides = {};
   state.confirm = {};
   state.reports = [];
+  ingestedEventIds.clear();
 }

@@ -1,5 +1,6 @@
 import type {
   CreateTicketInput,
+  ExtractResult,
   ReportKind,
   ReportRecord,
   Ticket,
@@ -9,6 +10,24 @@ import type {
 import { authHeadersForPost } from "./auth";
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "";
+
+/** Error carrying the HTTP status and backend error code (e.g. "auth_required"). */
+export class ApiError extends Error {
+  readonly status: number;
+  readonly code?: string;
+
+  constructor(status: number, code: string | undefined, message: string) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.code = code;
+  }
+}
+
+/** True for backend auth failures (missing/invalid/unverifiable session token). */
+export function isAuthError(err: unknown): boolean {
+  return err instanceof ApiError && (err.status === 401 || err.code === "auth_required");
+}
 
 export interface TicketsPayload {
   tickets: Ticket[];
@@ -35,7 +54,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new Error(body.error ?? `Request failed (${res.status})`);
+    const code = typeof body.error === "string" ? body.error : undefined;
+    throw new ApiError(res.status, code, code ?? `Request failed (${res.status})`);
   }
 
   return res.json() as Promise<T>;
@@ -65,6 +85,13 @@ export function reportTicket(
   return request(`/api/tickets/${id}/report`, {
     method: "POST",
     body: JSON.stringify({ kind }),
+  });
+}
+
+export function extractPost(text: string): Promise<ExtractResult> {
+  return request<ExtractResult>("/api/extract", {
+    method: "POST",
+    body: JSON.stringify({ text }),
   });
 }
 

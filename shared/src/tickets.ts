@@ -2,16 +2,30 @@ import type {
   CampusArea,
   CreateTicketInput,
   ExtractedPost,
+  ExtractField,
+  ExtractResult,
+  FieldConfidence,
   Filters,
+  TimeNormalized,
   Ticket,
   TicketConfirmMeta,
   TicketOverrides,
   TicketStatus,
   TicketView,
   TimeWindow,
+  UserIdentity,
   WorthLevel,
 } from "./types.js";
 import { SEED_AUTHORS } from "./seedUsers.js";
+
+/**
+ * Fixed identity for auto-ingested tickets. Shared so backend can stamp it and
+ * frontend can detect auto-origin without a magic-string drift.
+ */
+export const SYSTEM_INGEST_USER: UserIdentity = {
+  userId: "system-ingest",
+  displayName: "MealMap Auto",
+};
 
 export const WORTH_COLORS: Record<WorthLevel, string> = {
   high: "#3C7A45",
@@ -49,6 +63,14 @@ export function worthRank(w: WorthLevel): number {
   return 2;
 }
 
+/**
+ * Trust tier for ranking: confirmed (or absent = human) sorts above unverified
+ * (auto-ingested) tickets.
+ */
+export function trustRank(ticket: Ticket): number {
+  return ticket.trust === "unverified" ? 1 : 0;
+}
+
 export function effectiveStatus(
   ticket: Ticket,
   overrides: TicketOverrides = {},
@@ -77,6 +99,9 @@ export function filterTickets(
   });
 
   return list.sort((a, b) => {
+    const trustDiff = trustRank(a) - trustRank(b);
+    if (trustDiff !== 0) return trustDiff;
+
     const aGone = effectiveStatus(a, overrides) === "gone" ? 1 : 0;
     const bGone = effectiveStatus(b, overrides) === "gone" ? 1 : 0;
     if (aGone !== bGone) return aGone - bGone;
@@ -144,9 +169,11 @@ export function buildQuickAddTicket(input: {
 
 export function buildTicketFromExtracted(extracted: ExtractedPost): CreateTicketInput {
   const cost =
-    extracted.cost === "Free"
-      ? 0
-      : parseInt(extracted.cost.replace(/\D/g, ""), 10) || 0;
+    typeof extracted.costCents === "number"
+      ? Math.round(extracted.costCents / 100)
+      : extracted.cost === "Free"
+        ? 0
+        : parseInt(extracted.cost.replace(/\D/g, ""), 10) || 0;
 
   return {
     name:
@@ -156,7 +183,7 @@ export function buildTicketFromExtracted(extracted: ExtractedPost): CreateTicket
     source: "Pasted post",
     cost,
     area: "quad",
-    time: "now",
+    time: extracted.timeWindow ?? "now",
     walk: 2 + Math.floor(Math.random() * 8),
     where: extracted.location !== "—" ? extracted.location : "See post",
     ends:
@@ -167,6 +194,101 @@ export function buildTicketFromExtracted(extracted: ExtractedPost): CreateTicket
     worth: extracted.confidence >= 80 ? "high" : "maybe",
     status: "available",
     blurb: `Auto-read from a pasted event post. Confidence ${extracted.confidence}%. Double-check details when you arrive.`,
+  };
+}
+
+/** Canonical order of extracted fields. */
+export const EXTRACT_FIELDS: ExtractField[] = [
+  "food",
+  "cost",
+  "time",
+  "location",
+  "access",
+];
+
+/** Display labels for extracted fields. */
+export const EXTRACT_FIELD_LABELS: Record<ExtractField, string> = {
+  food: "FOOD",
+  cost: "COST",
+  time: "TIME",
+  location: "LOCATION",
+  access: "ACCESS",
+};
+
+const CONFIDENCE_WEIGHT: Record<FieldConfidence, number> = {
+  high: 1,
+  medium: 0.6,
+  low: 0.3,
+};
+
+const HOUR_MS = 60 * 60 * 1000;
+
+/**
+ * Buckets normalized timing into a {@link TimeWindow} for ranking/filtering.
+ * `null` (regex fallback / no stated time) defaults to "today".
+ */
+export function timeWindowFromNormalized(tn: TimeNormalized | null): TimeWindow {
+  if (!tn) return "today";
+  if (tn.type === "now") return "now";
+  if (tn.start) {
+    const startMs = Date.parse(tn.start);
+    if (!Number.isNaN(startMs)) {
+      const diff = startMs - Date.now();
+      if (diff <= 0) return "now";
+      if (diff <= HOUR_MS) return "hour";
+    }
+  }
+  return "today";
+}
+
+/**
+ * Bridges an {@link ExtractResult} (LLM or regex) into the legacy
+ * {@link ExtractedPost} display shape so `buildTicketFromExtracted` and the
+ * existing ticket-print UI keep working unchanged.
+ */
+export function extractResultToPost(result: ExtractResult): ExtractedPost {
+  const { extraction, confidence } = result;
+  const sentinel = (value: string | null) =>
+    value && value.trim() ? value : "—";
+
+  const costColor =
+    extraction.cost && /free/i.test(extraction.cost) ? "#E5431E" : "#1B1712";
+
+  const rawScore = EXTRACT_FIELDS.reduce((sum, field) => {
+    if (extraction[field] === null) return sum;
+    return sum + CONFIDENCE_WEIGHT[confidence[field] ?? "low"];
+  }, 0);
+  const confidenceScore = Math.round((rawScore / EXTRACT_FIELDS.length) * 100);
+
+  let confLabel: ExtractedPost["confLabel"] = "LOW";
+  let confColor = STATUS_COLORS.gone;
+  if (confidenceScore >= 80) {
+    confLabel = "HIGH";
+    confColor = STATUS_COLORS.available;
+  } else if (confidenceScore >= 50) {
+    confLabel = "MEDIUM";
+    confColor = STATUS_COLORS.maybe;
+  }
+
+  const missingLabels = result.missing.map(
+    (field) => EXTRACT_FIELD_LABELS[field] ?? field,
+  );
+
+  return {
+    food: sentinel(extraction.food),
+    cost: sentinel(extraction.cost),
+    costColor,
+    time: sentinel(extraction.time),
+    location: sentinel(extraction.location),
+    access: sentinel(extraction.access),
+    confidence: confidenceScore,
+    confLabel,
+    confColor,
+    missing: missingLabels,
+    missingText: missingLabels.join(", "),
+    hasMissing: missingLabels.length > 0,
+    timeWindow: timeWindowFromNormalized(result.time_normalized),
+    costCents: result.cost_cents,
   };
 }
 

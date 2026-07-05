@@ -1,4 +1,5 @@
 import type { ReportKind, TicketView } from "@mealmap/shared";
+import { SYSTEM_INGEST_USER } from "@mealmap/shared";
 
 interface DetailPanelProps {
   ticket: TicketView;
@@ -16,6 +17,8 @@ const REPORT_BUTTONS: Array<{ label: string; color: string; kind: ReportKind }> 
 ];
 
 export function DetailPanel({ ticket, toast, onClose, onReport }: DetailPanelProps) {
+  const isAutoSource = ticket.createdBy.userId === SYSTEM_INGEST_USER.userId;
+  const isUnverified = ticket.trust === "unverified";
   return (
     <>
       <div
@@ -129,38 +132,72 @@ export function DetailPanel({ ticket, toast, onClose, onReport }: DetailPanelPro
                   marginTop: 7,
                 }}
               >
-                via {ticket.source}
+                {isAutoSource
+                  ? `via ${ticket.createdBy.displayName} · ${ticket.source}`
+                  : `via ${ticket.source}`}
               </div>
             </div>
-            <div
-              style={{
-                flexShrink: 0,
-                textAlign: "center",
-                fontFamily: "Archivo",
-                fontWeight: 900,
-                fontSize: 16,
-                color: ticket.worthColor,
-                border: `3px solid ${ticket.worthColor}`,
-                borderRadius: 8,
-                padding: "8px 10px",
-                transform: "rotate(-6deg)",
-                lineHeight: 1.05,
-              }}
-            >
-              {ticket.worthLabel}
+            {isUnverified ? (
               <div
                 style={{
-                  fontFamily: "Space Mono, monospace",
-                  fontWeight: 400,
-                  fontSize: 8,
-                  letterSpacing: "1px",
-                  color: ticket.worthColor,
-                  marginTop: 3,
+                  flexShrink: 0,
+                  textAlign: "center",
+                  fontFamily: "Archivo",
+                  fontWeight: 900,
+                  fontSize: 13,
+                  color: "#B7791F",
+                  border: "3px solid #B7791F",
+                  borderRadius: 8,
+                  padding: "8px 10px",
+                  transform: "rotate(-6deg)",
+                  lineHeight: 1.05,
                 }}
               >
-                WORTH WALKING
+                UNVERIFIED
+                <div
+                  style={{
+                    fontFamily: "Space Mono, monospace",
+                    fontWeight: 400,
+                    fontSize: 8,
+                    letterSpacing: "1px",
+                    color: "#B7791F",
+                    marginTop: 3,
+                  }}
+                >
+                  NOT YET CONFIRMED
+                </div>
               </div>
-            </div>
+            ) : (
+              <div
+                style={{
+                  flexShrink: 0,
+                  textAlign: "center",
+                  fontFamily: "Archivo",
+                  fontWeight: 900,
+                  fontSize: 16,
+                  color: ticket.worthColor,
+                  border: `3px solid ${ticket.worthColor}`,
+                  borderRadius: 8,
+                  padding: "8px 10px",
+                  transform: "rotate(-6deg)",
+                  lineHeight: 1.05,
+                }}
+              >
+                {ticket.worthLabel}
+                <div
+                  style={{
+                    fontFamily: "Space Mono, monospace",
+                    fontWeight: 400,
+                    fontSize: 8,
+                    letterSpacing: "1px",
+                    color: ticket.worthColor,
+                    marginTop: 3,
+                  }}
+                >
+                  WORTH WALKING
+                </div>
+              </div>
+            )}
           </div>
 
           <div
@@ -205,6 +242,27 @@ export function DetailPanel({ ticket, toast, onClose, onReport }: DetailPanelPro
           >
             {ticket.blurb}
           </p>
+
+          {ticket.sourceUrl && (
+            <a
+              href={ticket.sourceUrl}
+              target="_blank"
+              rel="noreferrer"
+              style={{
+                display: "inline-block",
+                fontFamily: "Space Mono, monospace",
+                fontSize: 12.5,
+                fontWeight: 700,
+                letterSpacing: "0.5px",
+                color: "#1B1712",
+                textDecoration: "underline",
+                textUnderlineOffset: 3,
+                margin: "0 0 22px",
+              }}
+            >
+              check event page →
+            </a>
+          )}
 
           <div
             style={{

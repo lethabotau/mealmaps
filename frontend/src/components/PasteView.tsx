@@ -1,46 +1,102 @@
-import { useCallback, useEffect, useState } from "react";
-import type { ExtractedPost } from "@mealmap/shared";
-import { extractFromPost } from "@mealmap/shared";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
+import {
+  EXTRACT_FIELDS,
+  EXTRACT_FIELD_LABELS,
+  extractResultToPost,
+  type ExtractResult,
+  type FieldConfidence,
+} from "@mealmap/shared";
+import { isAuthError } from "../api/client";
 
 const SAMPLE_POST =
   "CS Club Sponsor Night is TONIGHT! Free pizza in Quad 1043 from 6pm to 8pm. Open to all students, first come first served. No RSVP needed.";
 
+const CONF_COLOR: Record<FieldConfidence, string> = {
+  high: "#3C7A45",
+  medium: "#B7791F",
+  low: "#C0341D",
+};
+
 interface PasteViewProps {
   onGoDash: () => void;
-  onPostTicket: (extracted: ExtractedPost) => Promise<void>;
+  onExtract: (text: string) => Promise<ExtractResult | null>;
+  onPostTicket: (extracted: ReturnType<typeof extractResultToPost>) => Promise<boolean>;
+  resumeExtractToken?: number;
   resumeSubmitToken?: number;
 }
 
 export function PasteView({
   onGoDash,
+  onExtract,
   onPostTicket,
+  resumeExtractToken = 0,
   resumeSubmitToken = 0,
 }: PasteViewProps) {
   const [pasteText, setPasteText] = useState(SAMPLE_POST);
-  const [extracted, setExtracted] = useState<ExtractedPost | null>(null);
-  const [posted, setPosted] = useState(false);
+  const [result, setResult] = useState<ExtractResult | null>(null);
+  const [extracting, setExtracting] = useState(false);
   const [posting, setPosting] = useState(false);
+  const [posted, setPosted] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const runExtract = () => {
-    setExtracted(extractFromPost(pasteText));
-    setPosted(false);
-  };
+  const runExtract = useCallback(async () => {
+    if (!pasteText.trim()) return;
+    setExtracting(true);
+    setError(null);
+    try {
+      const extracted = await onExtract(pasteText);
+      // `null` means sign-in was required; the modal opened and this will be
+      // re-run via resumeExtractToken after auth completes.
+      if (extracted) {
+        setResult(extracted);
+        setPosted(false);
+      }
+    } catch (err) {
+      setError(
+        isAuthError(err)
+          ? "Session expired — sign in again, then hit Read this post."
+          : "Couldn’t read the post. Check the text and try again.",
+      );
+    } finally {
+      setExtracting(false);
+    }
+  }, [pasteText, onExtract]);
 
   const postPaste = useCallback(async () => {
-    if (!extracted) return;
+    if (!result || posted) return;
     setPosting(true);
+    setError(null);
     try {
-      await onPostTicket(extracted);
-      setPosted(true);
+      const ok = await onPostTicket(extractResultToPost(result));
+      if (ok) setPosted(true);
+    } catch (err) {
+      setError(
+        isAuthError(err)
+          ? "Session expired — sign in again, then hit Post to MealMap."
+          : "Couldn’t post the ticket. Try again.",
+      );
     } finally {
       setPosting(false);
     }
-  }, [extracted, onPostTicket]);
+  }, [result, posted, onPostTicket]);
+
+  // Resume the gated action after sign-in without re-running on every keystroke.
+  const runExtractRef = useRef(runExtract);
+  const postPasteRef = useRef(postPaste);
+  useEffect(() => {
+    runExtractRef.current = runExtract;
+    postPasteRef.current = postPaste;
+  });
 
   useEffect(() => {
-    if (!resumeSubmitToken || !extracted || posted) return;
-    void postPaste();
-  }, [resumeSubmitToken, extracted, posted, postPaste]);
+    if (!resumeExtractToken) return;
+    void runExtractRef.current();
+  }, [resumeExtractToken]);
+
+  useEffect(() => {
+    if (!resumeSubmitToken) return;
+    void postPasteRef.current();
+  }, [resumeSubmitToken]);
 
   return (
     <section className="mm-fade-up">
@@ -97,8 +153,9 @@ export function PasteView({
             value={pasteText}
             onChange={(e) => {
               setPasteText(e.target.value);
-              setExtracted(null);
+              setResult(null);
               setPosted(false);
+              setError(null);
             }}
             style={{
               width: "100%",
@@ -115,7 +172,8 @@ export function PasteView({
             }}
           />
           <button
-            onClick={runExtract}
+            onClick={() => void runExtract()}
+            disabled={extracting || !pasteText.trim()}
             style={{
               marginTop: 14,
               width: "100%",
@@ -127,16 +185,66 @@ export function PasteView({
               border: "2.5px solid #1B1712",
               borderRadius: 9,
               boxShadow: "4px 4px 0 rgba(27,23,18,0.5)",
-              cursor: "pointer",
+              cursor: extracting ? "wait" : "pointer",
               padding: 13,
+              opacity: extracting || !pasteText.trim() ? 0.7 : 1,
             }}
           >
-            READ THIS POST →
+            {extracting ? "READING…" : "READ THIS POST →"}
           </button>
+          {error && (
+            <div
+              style={{
+                marginTop: 12,
+                fontFamily: "Space Mono, monospace",
+                fontSize: 12,
+                color: "#C0341D",
+              }}
+            >
+              {error}
+            </div>
+          )}
         </div>
 
         <div style={{ minHeight: 220 }}>
-          {extracted ? (
+          {extracting ? (
+            <div
+              style={{
+                height: "100%",
+                minHeight: 260,
+                border: "2.5px dashed #b8ab92",
+                borderRadius: 12,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 10,
+                textAlign: "center",
+                padding: 30,
+              }}
+            >
+              <span
+                style={{
+                  fontFamily: "Space Mono, monospace",
+                  fontSize: 12,
+                  letterSpacing: "1.5px",
+                  color: "#a89a83",
+                }}
+              >
+                ▮▮▮ READING ▮▮▮
+              </span>
+              <span
+                style={{
+                  fontFamily: "Archivo",
+                  fontWeight: 700,
+                  fontSize: 16,
+                  color: "#8a7d6c",
+                }}
+              >
+                Reading the post…
+              </span>
+            </div>
+          ) : result ? (
             <div
               className="mm-panel"
               style={{
@@ -159,34 +267,123 @@ export function PasteView({
                 }}
               >
                 <span>MEALMAP · AUTO-READ</span>
-                <span style={{ color: extracted.confColor, fontWeight: 700 }}>
-                  {extracted.confLabel} CONF · {extracted.confidence}%
+                <span
+                  style={{
+                    color: result.source === "llm" ? "#8fd19e" : "#e0b062",
+                    fontWeight: 700,
+                  }}
+                >
+                  {result.source === "llm" ? "AI READ" : "KEYWORD READ"}
                 </span>
               </div>
               <div style={{ padding: 18, display: "flex", flexDirection: "column", gap: 11 }}>
+                {result.time_normalized?.type === "now" && (
+                  <div style={{ display: "flex" }}>
+                    <span
+                      style={{
+                        fontFamily: "Archivo",
+                        fontWeight: 900,
+                        fontSize: 15,
+                        letterSpacing: "0.5px",
+                        color: "#E5431E",
+                        border: "3px solid #E5431E",
+                        borderRadius: 7,
+                        padding: "4px 11px",
+                        transform: "rotate(-4deg)",
+                      }}
+                    >
+                      HAPPENING NOW
+                    </span>
+                  </div>
+                )}
+                {!result.plausible && (
+                  <div
+                    style={{
+                      border: "2px dashed #C0341D",
+                      borderRadius: 8,
+                      padding: "10px 12px",
+                      background: "#fbe9e6",
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontFamily: "Space Mono, monospace",
+                        fontSize: 11,
+                        letterSpacing: "1px",
+                        color: "#C0341D",
+                        fontWeight: 700,
+                        marginBottom: 4,
+                      }}
+                    >
+                      DOESN&apos;T LOOK LIKE A FOOD EVENT — POST ANYWAY?
+                    </div>
+                    <div
+                      style={{
+                        fontFamily: "Space Mono, monospace",
+                        fontSize: 12,
+                        color: "#8a3a2e",
+                      }}
+                    >
+                      {result.plausibility_reason || "Low plausibility."}
+                    </div>
+                  </div>
+                )}
+
                 <div
                   style={{
                     display: "grid",
-                    gridTemplateColumns: "auto 1fr",
+                    gridTemplateColumns: "auto 1fr auto",
                     gap: "9px 14px",
+                    alignItems: "center",
                     fontFamily: "Space Mono, monospace",
                     fontSize: 13,
                   }}
                 >
-                  <span style={{ color: "#9a8d7a" }}>FOOD</span>
-                  <span style={{ fontWeight: 700, color: "#1B1712" }}>{extracted.food}</span>
-                  <span style={{ color: "#9a8d7a" }}>COST</span>
-                  <span style={{ fontWeight: 700, color: extracted.costColor }}>
-                    {extracted.cost}
-                  </span>
-                  <span style={{ color: "#9a8d7a" }}>TIME</span>
-                  <span style={{ color: "#1B1712" }}>{extracted.time}</span>
-                  <span style={{ color: "#9a8d7a" }}>LOCATION</span>
-                  <span style={{ color: "#1B1712" }}>{extracted.location}</span>
-                  <span style={{ color: "#9a8d7a" }}>ACCESS</span>
-                  <span style={{ color: "#1B1712" }}>{extracted.access}</span>
+                  {EXTRACT_FIELDS.map((field) => {
+                    const value = result.extraction[field];
+                    const isCost = field === "cost";
+                    const valueColor =
+                      isCost && value && /free/i.test(value)
+                        ? "#E5431E"
+                        : "#1B1712";
+                    return (
+                      <Fragment key={field}>
+                        <span style={{ color: "#9a8d7a" }}>
+                          {EXTRACT_FIELD_LABELS[field]}
+                        </span>
+                        <span
+                          style={{
+                            fontWeight: value ? 700 : 400,
+                            color: value ? valueColor : "#b3a692",
+                          }}
+                        >
+                          {value ?? "—"}
+                        </span>
+                        {value ? (
+                          <span
+                            style={{
+                              justifySelf: "end",
+                              fontFamily: "Space Mono, monospace",
+                              fontSize: 9.5,
+                              letterSpacing: "0.5px",
+                              fontWeight: 700,
+                              color: CONF_COLOR[result.confidence[field]],
+                              border: `1.5px solid ${CONF_COLOR[result.confidence[field]]}`,
+                              borderRadius: 5,
+                              padding: "2px 6px",
+                            }}
+                          >
+                            {result.confidence[field].toUpperCase()}
+                          </span>
+                        ) : (
+                          <span />
+                        )}
+                      </Fragment>
+                    );
+                  })}
                 </div>
-                {extracted.hasMissing && (
+
+                {result.missing.length > 0 && (
                   <div
                     style={{
                       border: "2px dashed #B7791F",
@@ -213,10 +410,13 @@ export function PasteView({
                         color: "#8a6a1f",
                       }}
                     >
-                      {extracted.missingText}
+                      {result.missing
+                        .map((field) => EXTRACT_FIELD_LABELS[field])
+                        .join(", ")}
                     </span>
                   </div>
                 )}
+
                 <div style={{ borderTop: "2px dashed #d9cdb5", margin: "2px 0" }} />
                 {posted ? (
                   <div style={{ display: "flex", alignItems: "center", gap: 14 }}>

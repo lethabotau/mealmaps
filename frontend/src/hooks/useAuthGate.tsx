@@ -10,6 +10,7 @@ import type { ReportKind } from "@mealmap/shared";
 export type PendingAction =
   | { type: "add-food" }
   | { type: "report"; kind: ReportKind }
+  | { type: "paste-extract" }
   | { type: "paste-submit" };
 
 const PENDING_STORAGE_KEY = "mealmap:pending-action";
@@ -21,6 +22,7 @@ function parsePending(raw: string): PendingAction | null {
     const data = JSON.parse(raw) as PendingAction;
     if (data.type === "add-food") return { type: "add-food" };
     if (data.type === "report" && data.kind) return data;
+    if (data.type === "paste-extract") return { type: "paste-extract" };
     if (data.type === "paste-submit") return { type: "paste-submit" };
   } catch {
     /* ignore corrupt storage */

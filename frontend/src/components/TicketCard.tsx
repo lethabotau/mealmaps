@@ -1,4 +1,5 @@
 import type { TicketView } from "@mealmap/shared";
+import { SYSTEM_INGEST_USER } from "@mealmap/shared";
 
 interface TicketCardProps {
   ticket: TicketView;
@@ -6,6 +7,8 @@ interface TicketCardProps {
 }
 
 export function TicketCard({ ticket, onClick }: TicketCardProps) {
+  const isAutoSource = ticket.createdBy.userId === SYSTEM_INGEST_USER.userId;
+  const isUnverified = ticket.trust === "unverified";
   return (
     <div
       onClick={onClick}
@@ -85,7 +88,9 @@ export function TicketCard({ ticket, onClick }: TicketCardProps) {
             color: "#8a7d6c",
           }}
         >
-          via {ticket.source}
+          {isAutoSource
+            ? `via ${ticket.createdBy.displayName} · ${ticket.source}`
+            : `via ${ticket.source}`}
         </div>
         <div
           style={{
@@ -180,23 +185,43 @@ export function TicketCard({ ticket, onClick }: TicketCardProps) {
             MIN WALK
           </div>
         </div>
-        <div
-          style={{
-            fontFamily: "Archivo",
-            fontWeight: 900,
-            fontSize: 14,
-            letterSpacing: "0.4px",
-            color: ticket.worthColor,
-            border: `2.5px solid ${ticket.worthColor}`,
-            borderRadius: 6,
-            padding: "5px 6px",
-            textAlign: "center",
-            transform: "rotate(-7deg)",
-            lineHeight: 1.05,
-          }}
-        >
-          {ticket.worthLabel}
-        </div>
+        {isUnverified ? (
+          <div
+            style={{
+              fontFamily: "Archivo",
+              fontWeight: 900,
+              fontSize: 11,
+              letterSpacing: "0.3px",
+              color: "#B7791F",
+              border: "2.5px solid #B7791F",
+              borderRadius: 6,
+              padding: "5px 5px",
+              textAlign: "center",
+              transform: "rotate(-7deg)",
+              lineHeight: 1.05,
+            }}
+          >
+            UNVERIFIED
+          </div>
+        ) : (
+          <div
+            style={{
+              fontFamily: "Archivo",
+              fontWeight: 900,
+              fontSize: 14,
+              letterSpacing: "0.4px",
+              color: ticket.worthColor,
+              border: `2.5px solid ${ticket.worthColor}`,
+              borderRadius: 6,
+              padding: "5px 6px",
+              textAlign: "center",
+              transform: "rotate(-7deg)",
+              lineHeight: 1.05,
+            }}
+          >
+            {ticket.worthLabel}
+          </div>
+        )}
         <div
           style={{
             fontFamily: "Space Mono, monospace",

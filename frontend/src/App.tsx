@@ -6,11 +6,13 @@ import {
   filterTickets,
   toTicketView,
   type ExtractedPost,
+  type ExtractResult,
   type Filters,
   type ReportKind,
   type Screen,
 } from "@mealmap/shared";
 import { configureAuthTokenGetter } from "./api/auth";
+import { extractPost } from "./api/client";
 import { AddFoodModal } from "./components/AddFoodModal";
 import { DashboardView } from "./components/DashboardView";
 import { DetailPanel } from "./components/DetailPanel";
@@ -36,6 +38,7 @@ export default function App() {
   const [modalOpen, setModalOpen] = useState(false);
   const [toast, setToast] = useState("");
   const [pasteResumeToken, setPasteResumeToken] = useState(0);
+  const [pasteExtractToken, setPasteExtractToken] = useState(0);
 
   const handleReport = useCallback(
     async (kind: ReportKind) => {
@@ -61,6 +64,10 @@ export default function App() {
       }
       if (action.type === "report") {
         void handleReport(action.kind);
+        return;
+      }
+      if (action.type === "paste-extract") {
+        setPasteExtractToken((token) => token + 1);
         return;
       }
       if (action.type === "paste-submit") {
@@ -179,11 +186,22 @@ export default function App() {
         {screen === "paste" && (
           <PasteView
             onGoDash={() => setScreen("dashboard")}
+            resumeExtractToken={pasteExtractToken}
             resumeSubmitToken={pasteResumeToken}
+            onExtract={async (text) => {
+              let result: ExtractResult | null = null;
+              await gate({ type: "paste-extract" }, async () => {
+                result = await extractPost(text);
+              });
+              return result;
+            }}
             onPostTicket={async (extracted) => {
-              await gate({ type: "paste-submit" }, () =>
-                handlePostFromPaste(extracted),
-              );
+              let posted = false;
+              await gate({ type: "paste-submit" }, async () => {
+                await handlePostFromPaste(extracted);
+                posted = true;
+              });
+              return posted;
             }}
           />
         )}
