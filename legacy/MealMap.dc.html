@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{background:#F1E9D8;}
+  textarea:focus,input:focus{outline:2px solid #E5431E;outline-offset:0;}
+  @keyframes mm-stampIn{0%{transform:scale(1.7) rotate(-16deg);opacity:0;}55%{opacity:1;}100%{transform:scale(1) rotate(-8deg);opacity:1;}}
+  @keyframes mm-slideOver{from{transform:translateX(102%);}to{transform:translateX(0);}}
+  @keyframes mm-fadeUp{from{transform:translateY(14px);opacity:0;}to{transform:translateY(0);opacity:1;}}
+  @keyframes mm-print{from{clip-path:inset(0 0 100% 0);}to{clip-path:inset(0 0 0 0);}}
+  @keyframes mm-scrim{from{opacity:0;}to{opacity:1;}}
+</style>
+</helmet>
+<div style="min-height:100vh;background-color:#F1E9D8;background-image:radial-gradient(circle, rgba(27,23,18,0.05) 0.6px, transparent 0.7px);background-size:6px 6px;font-family:Archivo, sans-serif;color:#1B1712;">
+  <div style="max-width:1200px;margin:0 auto;padding:24px 26px 90px;">
+
+    <!-- HEADER -->
+    <header style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:16px 24px;border-bottom:3px solid #1B1712;padding-bottom:16px;">
+      <div onClick="{{ goDash }}" style="display:flex;align-items:center;gap:12px;cursor:pointer;">
+        <div style="width:42px;height:42px;background:#E5431E;border:2.5px solid #1B1712;border-radius:9px 7px 9px 7px;box-shadow:3px 3px 0 rgba(27,23,18,0.85);display:flex;align-items:center;justify-content:center;transform:rotate(-3deg);">
+          <span style="font-family:Archivo;font-weight:900;font-size:24px;color:#FBF7EE;line-height:1;">M</span>
+        </div>
+        <div style="display:flex;flex-direction:column;line-height:1;">
+          <span style="font-family:Archivo;font-weight:900;font-size:27px;letter-spacing:-1px;">Meal<span style="color:#E5431E;">Map</span></span>
+          <span style="font-family:'Space Mono',monospace;font-size:9.5px;letter-spacing:2.5px;color:#8a7d6c;margin-top:3px;">CAMPUS FOOD PASS</span>
+        </div>
+      </div>
+      <nav style="display:flex;flex-wrap:wrap;align-items:center;gap:8px 6px;">
+        <button onClick="{{ goDash }}" style="font-family:'Space Mono',monospace;font-size:12px;font-weight:700;letter-spacing:1px;background:none;border:none;cursor:pointer;padding:8px 10px;color:{{ navDashColor }};">DASHBOARD</button>
+        <button onClick="{{ goResults }}" style="font-family:'Space Mono',monospace;font-size:12px;font-weight:700;letter-spacing:1px;background:none;border:none;cursor:pointer;padding:8px 10px;color:{{ navResultsColor }};">RANKED</button>
+        <button onClick="{{ goPaste }}" style="font-family:'Space Mono',monospace;font-size:12px;font-weight:700;letter-spacing:1px;background:none;border:none;cursor:pointer;padding:8px 10px;color:{{ navPasteColor }};">PASTE POST</button>
+        <button onClick="{{ openAdd }}" style="font-family:Archivo;font-weight:800;font-size:13px;letter-spacing:0.3px;background:#E5431E;color:#FBF7EE;border:2.5px solid #1B1712;border-radius:8px 6px 8px 6px;box-shadow:3px 3px 0 rgba(27,23,18,0.85);cursor:pointer;padding:9px 15px;transform:rotate(-1.5deg);" style-hover="transform:rotate(-1.5deg) translate(-1px,-1px);box-shadow:4px 4px 0 rgba(27,23,18,0.9);">+ FOUND FOOD</button>
+      </nav>
+    </header>
+
+    <!-- ================= DASHBOARD ================= -->
+    <sc-if value="{{ isDash }}" hint-placeholder-val="{{ true }}">
+    <section style="animation:mm-fadeUp .3s ease both;">
+      <div style="display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:22px;margin:28px 0 8px;">
+        <div style="max-width:640px;">
+          <div style="font-family:'Space Mono',monospace;font-size:12px;letter-spacing:2px;color:#E5431E;margin-bottom:12px;">// WHAT CAN I EAT RIGHT NOW?</div>
+          <h1 style="font-family:Archivo;font-weight:900;font-size:clamp(34px,5vw,54px);line-height:1.0;letter-spacing:-1.5px;margin:0;">Free &amp; cheap food on campus, ranked by what's worth walking to.</h1>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-start;gap:10px;">
+          <button onClick="{{ openAdd }}" style="font-family:Archivo;font-weight:900;font-size:17px;letter-spacing:0.3px;background:#E5431E;color:#FBF7EE;border:3px solid #1B1712;border-radius:11px 8px 11px 8px;box-shadow:5px 5px 0 rgba(27,23,18,0.88);cursor:pointer;padding:15px 22px;transform:rotate(-2deg);" style-hover="transform:rotate(-2deg) translate(-2px,-2px);box-shadow:7px 7px 0 rgba(27,23,18,0.9);">+ FOUND FOOD</button>
+          <button onClick="{{ goPaste }}" style="font-family:'Space Mono',monospace;font-size:12px;font-weight:700;letter-spacing:0.5px;background:none;border:none;border-bottom:2px solid #1B1712;cursor:pointer;padding:2px 2px;color:#1B1712;margin-left:6px;">or paste an event post →</button>
+        </div>
+      </div>
+
+      <div style="margin:30px 0 8px;padding:18px 20px;background:#FBF7EE;border:2.5px solid #1B1712;border-radius:12px;box-shadow:4px 4px 0 rgba(27,23,18,0.85);">
+        <div style="display:flex;flex-wrap:wrap;gap:22px 30px;">
+          <sc-for list="{{ filterGroups }}" as="g" hint-placeholder-count="3">
+            <div style="display:flex;flex-direction:column;gap:8px;">
+              <span style="font-family:'Space Mono',monospace;font-size:11px;letter-spacing:2px;color:#8a7d6c;">{{ g.name }}</span>
+              <div style="display:inline-flex;border:2px solid #1B1712;border-radius:8px;overflow:hidden;">
+                <sc-for list="{{ g.options }}" as="o" hint-placeholder-count="3">
+                  <button onClick="{{ o.onClick }}" style="font-family:Archivo;font-weight:700;font-size:13px;border:none;border-right:2px solid #1B1712;cursor:pointer;padding:8px 13px;background:{{ o.bg }};color:{{ o.color }};">{{ o.label }}</button>
+                </sc-for>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+
+      <div style="display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap;margin:34px 0 16px;">
+        <h2 style="font-family:Archivo;font-weight:900;font-size:clamp(24px,3vw,32px);letter-spacing:-0.8px;margin:0;">Best options right now</h2>
+        <button onClick="{{ goResults }}" style="font-family:'Space Mono',monospace;font-size:12px;font-weight:700;letter-spacing:0.5px;background:none;border:none;border-bottom:2px solid #E5431E;color:#E5431E;cursor:pointer;padding:2px;">SEE ALL {{ resultCount }} RANKED →</button>
+      </div>
+
+      <sc-if value="{{ hasResults }}" hint-placeholder-val="{{ true }}">
+        <div style="display:grid;grid-template-columns:repeat(auto-fill, minmax(330px, 1fr));gap:18px;">
+          <sc-for list="{{ bestTickets }}" as="item" hint-placeholder-count="3">
+            <dc-import name="Ticket" t="{{ item }}" hint-size="100%,232px"></dc-import>
+          </sc-for>
+        </div>
+      </sc-if>
+      <sc-if value="{{ noResults }}" hint-placeholder-val="{{ false }}">
+        <div style="max-width:560px;position:relative;border:2.5px dashed #1B1712;border-radius:14px;background:#FBF7EE;padding:42px 30px;text-align:center;box-shadow:4px 4px 0 rgba(27,23,18,0.15);">
+          <div style="font-family:'Space Mono',monospace;font-size:11px;letter-spacing:2px;color:#a89a83;margin-bottom:14px;">NO. ————</div>
+          <div style="font-family:Archivo;font-weight:900;font-size:24px;letter-spacing:-0.5px;margin-bottom:8px;">No tickets match.</div>
+          <div style="font-family:Archivo;font-size:15px;color:#8a7d6c;max-width:340px;margin:0 auto 22px;line-height:1.5;">Nothing on the pass fits those filters. Loosen one — or be the one who posts it.</div>
+          <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+            <button onClick="{{ clearFilters }}" style="font-family:Archivo;font-weight:700;font-size:14px;background:none;color:#1B1712;border:2.5px solid #1B1712;border-radius:8px;cursor:pointer;padding:11px 18px;">Clear filters</button>
+            <button onClick="{{ openAdd }}" style="font-family:Archivo;font-weight:800;font-size:14px;background:#E5431E;color:#FBF7EE;border:2.5px solid #1B1712;border-radius:8px;box-shadow:3px 3px 0 rgba(27,23,18,0.85);cursor:pointer;padding:11px 18px;">+ Found food</button>
+          </div>
+          <div style="position:absolute;right:20px;bottom:14px;font-family:Archivo;font-weight:900;font-size:20px;color:#d8ccb4;border:3px solid #d8ccb4;border-radius:7px;padding:4px 10px;transform:rotate(-8deg);">VOID</div>
+        </div>
+      </sc-if>
+    </section>
+    </sc-if>
+
+    <!-- ================= RANKED RESULTS ================= -->
+    <sc-if value="{{ isResults }}" hint-placeholder-val="{{ false }}">
+    <section style="animation:mm-fadeUp .3s ease both;">
+      <div style="margin:26px 0 4px;">
+        <button onClick="{{ goDash }}" style="font-family:'Space Mono',monospace;font-size:12px;font-weight:700;letter-spacing:0.5px;background:none;border:none;cursor:pointer;padding:0;color:#8a7d6c;">← back to dashboard</button>
+      </div>
+      <div style="display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin:8px 0 4px;">
+        <h1 style="font-family:Archivo;font-weight:900;font-size:clamp(30px,4vw,44px);letter-spacing:-1.2px;margin:0;">Ranked results</h1>
+        <span style="font-family:'Space Mono',monospace;font-size:14px;color:#8a7d6c;">{{ resultCount }} on the pass</span>
+      </div>
+      <p style="font-family:'Space Mono',monospace;font-size:12.5px;color:#8a7d6c;margin:6px 0 20px;max-width:600px;">Sorted by worth-walking, then distance. Gone tickets sink to the bottom.</p>
+
+      <div style="margin:0 0 26px;padding:16px 18px;background:#FBF7EE;border:2.5px solid #1B1712;border-radius:12px;box-shadow:4px 4px 0 rgba(27,23,18,0.85);">
+        <div style="display:flex;flex-wrap:wrap;gap:20px 28px;">
+          <sc-for list="{{ filterGroups }}" as="g" hint-placeholder-count="3">
+            <div style="display:flex;flex-direction:column;gap:8px;">
+              <span style="font-family:'Space Mono',monospace;font-size:11px;letter-spacing:2px;color:#8a7d6c;">{{ g.name }}</span>
+              <div style="display:inline-flex;border:2px solid #1B1712;border-radius:8px;overflow:hidden;">
+                <sc-for list="{{ g.options }}" as="o" hint-placeholder-count="3">
+                  <button onClick="{{ o.onClick }}" style="font-family:Archivo;font-weight:700;font-size:13px;border:none;border-right:2px solid #1B1712;cursor:pointer;padding:8px 13px;background:{{ o.bg }};color:{{ o.color }};">{{ o.label }}</button>
+                </sc-for>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+
+      <sc-if value="{{ hasResults }}" hint-placeholder-val="{{ true }}">
+        <div style="display:flex;flex-direction:column;gap:16px;max-width:760px;">
+          <sc-for list="{{ rankedTickets }}" as="item" hint-placeholder-count="4">
+            <div style="display:flex;align-items:stretch;gap:14px;">
+              <div style="flex-shrink:0;width:40px;display:flex;justify-content:center;padding-top:6px;">
+                <span style="font-family:Archivo;font-weight:900;font-size:34px;color:#d8ccb4;line-height:1;">{{ item.rank }}</span>
+              </div>
+              <div style="flex:1;min-width:0;">
+                <dc-import name="Ticket" t="{{ item }}" hint-size="100%,232px"></dc-import>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+      <sc-if value="{{ noResults }}" hint-placeholder-val="{{ false }}">
+        <div style="max-width:560px;position:relative;border:2.5px dashed #1B1712;border-radius:14px;background:#FBF7EE;padding:42px 30px;text-align:center;box-shadow:4px 4px 0 rgba(27,23,18,0.15);">
+          <div style="font-family:'Space Mono',monospace;font-size:11px;letter-spacing:2px;color:#a89a83;margin-bottom:14px;">NO. ————</div>
+          <div style="font-family:Archivo;font-weight:900;font-size:24px;letter-spacing:-0.5px;margin-bottom:8px;">No tickets match.</div>
+          <div style="font-family:Archivo;font-size:15px;color:#8a7d6c;max-width:340px;margin:0 auto 22px;line-height:1.5;">Nothing on the pass fits those filters. Loosen one — or be the one who posts it.</div>
+          <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+            <button onClick="{{ clearFilters }}" style="font-family:Archivo;font-weight:700;font-size:14px;background:none;color:#1B1712;border:2.5px solid #1B1712;border-radius:8px;cursor:pointer;padding:11px 18px;">Clear filters</button>
+            <button onClick="{{ openAdd }}" style="font-family:Archivo;font-weight:800;font-size:14px;background:#E5431E;color:#FBF7EE;border:2.5px solid #1B1712;border-radius:8px;box-shadow:3px 3px 0 rgba(27,23,18,0.85);cursor:pointer;padding:11px 18px;">+ Found food</button>
+          </div>
+          <div style="position:absolute;right:20px;bottom:14px;font-family:Archivo;font-weight:900;font-size:20px;color:#d8ccb4;border:3px solid #d8ccb4;border-radius:7px;padding:4px 10px;transform:rotate(-8deg);">VOID</div>
+        </div>
+      </sc-if>
+    </section>
+    </sc-if>
+
+    <!-- ================= PASTE EVENT POST ================= -->
+    <sc-if value="{{ isPaste }}" hint-placeholder-val="{{ false }}">
+    <section style="animation:mm-fadeUp .3s ease both;">
+      <div style="margin:26px 0 4px;">
+        <button onClick="{{ goDash }}" style="font-family:'Space Mono',monospace;font-size:12px;font-weight:700;letter-spacing:0.5px;background:none;border:none;cursor:pointer;padding:0;color:#8a7d6c;">← back to dashboard</button>
+      </div>
+      <h1 style="font-family:Archivo;font-weight:900;font-size:clamp(30px,4vw,44px);letter-spacing:-1.2px;margin:8px 0 6px;">Paste an event post</h1>
+      <p style="font-family:'Space Mono',monospace;font-size:12.5px;color:#8a7d6c;margin:0 0 24px;max-width:620px;">Drop in a club email, flyer text, or group-chat message. We'll read it and print a ticket.</p>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(320px, 1fr));gap:22px;align-items:start;">
+        <div style="background:#FBF7EE;border:2.5px solid #1B1712;border-radius:12px;box-shadow:5px 5px 0 rgba(27,23,18,0.85);padding:18px;">
+          <div style="font-family:'Space Mono',monospace;font-size:11px;letter-spacing:2px;color:#8a7d6c;margin-bottom:10px;">RAW POST</div>
+          <textarea onInput="{{ onPaste }}" value="{{ pasteText }}" style="width:100%;min-height:220px;resize:vertical;font-family:'Space Mono',monospace;font-size:13px;line-height:1.6;color:#1B1712;background:#FFFDF7;border:2px solid #1B1712;border-radius:8px;padding:14px;"></textarea>
+          <button onClick="{{ runExtract }}" style="margin-top:14px;width:100%;font-family:Archivo;font-weight:800;font-size:15px;background:#1B1712;color:#FBF7EE;border:2.5px solid #1B1712;border-radius:9px;box-shadow:4px 4px 0 rgba(27,23,18,0.5);cursor:pointer;padding:13px;">READ THIS POST →</button>
+        </div>
+
+        <div style="min-height:220px;">
+          <sc-if value="{{ hasExtract }}" hint-placeholder-val="{{ false }}">
+            <div style="animation:mm-print .5s ease both;background:#FBF7EE;border:2.5px solid #1B1712;border-radius:12px;box-shadow:5px 5px 0 rgba(27,23,18,0.85);overflow:hidden;">
+              <div style="background:#1B1712;color:#FBF7EE;padding:11px 16px;display:flex;justify-content:space-between;align-items:center;font-family:'Space Mono',monospace;font-size:11px;letter-spacing:1.5px;">
+                <span>MEALMAP · AUTO-READ</span>
+                <span style="color:{{ ext.confColor }};font-weight:700;">{{ ext.confLabel }} CONF · {{ ext.confidence }}%</span>
+              </div>
+              <div style="padding:18px;display:flex;flex-direction:column;gap:11px;">
+                <div style="display:grid;grid-template-columns:auto 1fr;gap:9px 14px;font-family:'Space Mono',monospace;font-size:13px;">
+                  <span style="color:#9a8d7a;">FOOD</span><span style="font-weight:700;color:#1B1712;">{{ ext.food }}</span>
+                  <span style="color:#9a8d7a;">COST</span><span style="font-weight:700;color:{{ ext.costColor }};">{{ ext.cost }}</span>
+                  <span style="color:#9a8d7a;">TIME</span><span style="color:#1B1712;">{{ ext.time }}</span>
+                  <span style="color:#9a8d7a;">LOCATION</span><span style="color:#1B1712;">{{ ext.location }}</span>
+                  <span style="color:#9a8d7a;">ACCESS</span><span style="color:#1B1712;">{{ ext.access }}</span>
+                </div>
+                <sc-if value="{{ ext.hasMissing }}" hint-placeholder-val="{{ false }}">
+                  <div style="border:2px dashed #B7791F;border-radius:8px;padding:10px 12px;background:#fbf3e2;">
+                    <span style="font-family:'Space Mono',monospace;font-size:11px;letter-spacing:1px;color:#B7791F;font-weight:700;">MISSING → </span>
+                    <span style="font-family:'Space Mono',monospace;font-size:12px;color:#8a6a1f;">{{ ext.missingText }}</span>
+                  </div>
+                </sc-if>
+                <div style="border-top:2px dashed #d9cdb5;margin:2px 0;"></div>
+                <sc-if value="{{ posted }}" hint-placeholder-val="{{ false }}">
+                  <div style="display:flex;align-items:center;gap:14px;">
+                    <span style="font-family:Archivo;font-weight:900;font-size:20px;color:#3C7A45;border:3px solid #3C7A45;border-radius:7px;padding:6px 12px;transform:rotate(-6deg);">POSTED</span>
+                    <span style="font-family:'Space Mono',monospace;font-size:12px;color:#8a7d6c;">Now live on the pass.</span>
+                  </div>
+                </sc-if>
+                <sc-if value="{{ notPosted }}" hint-placeholder-val="{{ true }}">
+                  <button onClick="{{ postPaste }}" style="width:100%;font-family:Archivo;font-weight:900;font-size:16px;background:#E5431E;color:#FBF7EE;border:2.5px solid #1B1712;border-radius:9px;box-shadow:4px 4px 0 rgba(27,23,18,0.85);cursor:pointer;padding:14px;">POST TO MEALMAP</button>
+                </sc-if>
+              </div>
+            </div>
+          </sc-if>
+          <sc-if value="{{ noExtract }}" hint-placeholder-val="{{ true }}">
+            <div style="height:100%;min-height:260px;border:2.5px dashed #b8ab92;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;padding:30px;">
+              <span style="font-family:'Space Mono',monospace;font-size:12px;letter-spacing:1.5px;color:#a89a83;">▮▮▮ TICKET PRINTS HERE ▮▮▮</span>
+              <span style="font-family:Archivo;font-weight:700;font-size:16px;color:#a89a83;">Hit “Read this post” to preview</span>
+            </div>
+          </sc-if>
+        </div>
+      </div>
+    </section>
+    </sc-if>
+
+  </div>
+
+  <!-- ================= DETAIL SLIDE-OVER ================= -->
+  <sc-if value="{{ detailOpen }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ closeDetail }}" style="position:fixed;inset:0;background:rgba(27,23,18,0.4);z-index:39;animation:mm-scrim .2s ease both;"></div>
+    <aside style="position:fixed;top:0;right:0;height:100vh;width:min(468px,100vw);background:#FBF7EE;border-left:3px solid #1B1712;box-shadow:-8px 0 24px rgba(27,23,18,0.25);z-index:40;overflow-y:auto;animation:mm-slideOver .28s cubic-bezier(.2,.8,.2,1) both;">
+      <div style="background:#1B1712;color:#FBF7EE;padding:16px 20px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:2;">
+        <span style="font-family:'Space Mono',monospace;font-size:12px;letter-spacing:2px;">TICKET · NO. {{ detail.no }}</span>
+        <button onClick="{{ closeDetail }}" style="font-family:'Space Mono',monospace;font-size:18px;background:none;border:none;color:#FBF7EE;cursor:pointer;line-height:1;padding:2px 6px;">✕</button>
+      </div>
+      <div style="padding:22px 20px 40px;">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:14px;">
+          <div>
+            <span style="display:inline-block;border:1.5px solid {{ detail.statusColor }};color:{{ detail.statusColor }};padding:2px 8px;border-radius:4px;transform:rotate(-2deg);font-family:'Space Mono',monospace;font-weight:700;font-size:11px;letter-spacing:1.5px;margin-bottom:10px;">{{ detail.statusLabel }}</span>
+            <h2 style="font-family:Archivo;font-weight:900;font-size:28px;line-height:1.02;letter-spacing:-0.8px;margin:0;">{{ detail.name }}</h2>
+            <div style="font-family:'Space Mono',monospace;font-size:12.5px;color:#8a7d6c;margin-top:7px;">via {{ detail.source }}</div>
+          </div>
+          <div style="flex-shrink:0;text-align:center;font-family:Archivo;font-weight:900;font-size:16px;color:{{ detail.worthColor }};border:3px solid {{ detail.worthColor }};border-radius:8px;padding:8px 10px;transform:rotate(-6deg);line-height:1.05;">{{ detail.worthLabel }}<div style="font-family:'Space Mono',monospace;font-weight:400;font-size:8px;letter-spacing:1px;color:{{ detail.worthColor }};margin-top:3px;">WORTH WALKING</div></div>
+        </div>
+
+        <div style="margin:22px 0;display:grid;grid-template-columns:auto 1fr;gap:10px 16px;font-family:'Space Mono',monospace;font-size:13.5px;border-top:2px dashed #d9cdb5;border-bottom:2px dashed #d9cdb5;padding:16px 0;">
+          <span style="color:#9a8d7a;">COST</span><span style="font-weight:700;color:{{ detail.costColor }};">{{ detail.costLabel }}</span>
+          <span style="color:#9a8d7a;">WHERE</span><span style="color:#1B1712;">{{ detail.where }}</span>
+          <span style="color:#9a8d7a;">WALK</span><span style="color:#1B1712;">{{ detail.walk }} min</span>
+          <span style="color:#9a8d7a;">ENDS</span><span style="font-weight:700;color:{{ detail.endsColor }};">{{ detail.ends }}</span>
+          <span style="color:#9a8d7a;">ACCESS</span><span style="color:#1B1712;">{{ detail.access }}</span>
+          <span style="color:#9a8d7a;">SEEN</span><span style="color:#1B1712;">{{ detail.confirmed }}</span>
+        </div>
+
+        <p style="font-family:Archivo;font-size:15px;line-height:1.5;color:#4A423A;margin:0 0 22px;">{{ detail.blurb }}</p>
+
+        <div style="font-family:'Space Mono',monospace;font-size:11px;letter-spacing:2px;color:#8a7d6c;margin-bottom:12px;">— REPORT WHAT YOU SEE —</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <sc-for list="{{ reportButtons }}" as="r" hint-placeholder-count="5">
+            <button onClick="{{ r.onClick }}" style="font-family:Archivo;font-weight:700;font-size:13.5px;background:#FFFDF7;color:{{ r.color }};border:2.5px solid {{ r.color }};border-radius:8px;cursor:pointer;padding:11px 8px;" style-hover="background:{{ r.color }};color:#FBF7EE;">{{ r.label }}</button>
+          </sc-for>
+        </div>
+
+        <div style="margin-top:22px;padding:14px 16px;background:#F5EDDC;border:2px solid #1B1712;border-radius:8px;">
+          <div style="font-family:'Space Mono',monospace;font-size:12.5px;color:#1B1712;">Confirmed by {{ detail.confirmCount }} students · last checked {{ detail.lastChecked }}</div>
+        </div>
+
+        <sc-if value="{{ hasToast }}" hint-placeholder-val="{{ false }}">
+          <div style="margin-top:14px;font-family:Archivo;font-weight:700;font-size:14px;color:#3C7A45;background:#eaf3e7;border:2px solid #3C7A45;border-radius:8px;padding:11px 14px;animation:mm-fadeUp .25s ease both;">{{ toast }}</div>
+        </sc-if>
+      </div>
+    </aside>
+  </sc-if>
+
+  <!-- ================= QUICK ADD MODAL ================= -->
+  <sc-if value="{{ modalAdd }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ closeModal }}" style="position:fixed;inset:0;background:rgba(27,23,18,0.42);z-index:50;display:flex;align-items:center;justify-content:center;padding:24px;animation:mm-scrim .2s ease both;">
+      <div onClick="{{ stop }}" style="width:min(440px,100%);background:#FBF7EE;border:3px solid #1B1712;border-radius:14px;box-shadow:8px 8px 0 rgba(27,23,18,0.85);overflow:hidden;animation:mm-fadeUp .28s cubic-bezier(.2,.8,.2,1) both;">
+        <div style="background:#E5431E;color:#FBF7EE;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;">
+          <span style="font-family:Archivo;font-weight:900;font-size:18px;letter-spacing:-0.3px;">Found food?</span>
+          <button onClick="{{ closeModal }}" style="font-family:'Space Mono',monospace;font-size:17px;background:none;border:none;color:#FBF7EE;cursor:pointer;padding:2px 6px;line-height:1;">✕</button>
+        </div>
+
+        <sc-if value="{{ addDone }}" hint-placeholder-val="{{ false }}">
+          <div style="padding:40px 26px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:16px;">
+            <span style="font-family:Archivo;font-weight:900;font-size:26px;color:#3C7A45;border:3.5px solid #3C7A45;border-radius:9px;padding:10px 18px;transform:rotate(-7deg);animation:mm-stampIn .5s ease both;">ON THE PASS</span>
+            <p style="font-family:Archivo;font-size:15px;color:#4A423A;margin:0;max-width:280px;">Thanks — hungry students nearby can see it now.</p>
+            <button onClick="{{ finishAdd }}" style="font-family:Archivo;font-weight:800;font-size:15px;background:#1B1712;color:#FBF7EE;border:none;border-radius:9px;cursor:pointer;padding:12px 22px;">See it ranked →</button>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ addForm }}" hint-placeholder-val="{{ true }}">
+        <div style="padding:20px 22px 22px;">
+          <div style="display:flex;gap:6px;margin-bottom:20px;">
+            <sc-for list="{{ addSteps }}" as="s" hint-placeholder-count="3">
+              <div style="flex:1;height:6px;border-radius:3px;background:{{ s.color }};"></div>
+            </sc-for>
+          </div>
+          <div style="font-family:'Space Mono',monospace;font-size:11px;letter-spacing:2px;color:#8a7d6c;margin-bottom:6px;">STEP {{ addStepNum }} OF 3</div>
+
+          <sc-if value="{{ addS1 }}" hint-placeholder-val="{{ true }}">
+            <h3 style="font-family:Archivo;font-weight:900;font-size:22px;margin:0 0 14px;letter-spacing:-0.5px;">Where is it?</h3>
+            <input value="{{ addWhere }}" onInput="{{ onWhere }}" placeholder="e.g. Quad 1043, Library Atrium" style="width:100%;font-family:'Space Mono',monospace;font-size:14px;background:#FFFDF7;border:2px solid #1B1712;border-radius:8px;padding:12px;margin-bottom:12px;">
+            <div style="display:flex;flex-wrap:wrap;gap:8px;">
+              <sc-for list="{{ areaChips }}" as="c" hint-placeholder-count="4">
+                <button onClick="{{ c.onClick }}" style="font-family:'Space Mono',monospace;font-size:12px;font-weight:700;background:{{ c.bg }};color:{{ c.color }};border:2px solid #1B1712;border-radius:20px;cursor:pointer;padding:7px 13px;">{{ c.label }}</button>
+              </sc-for>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ addS2 }}" hint-placeholder-val="{{ false }}">
+            <h3 style="font-family:Archivo;font-weight:900;font-size:22px;margin:0 0 14px;letter-spacing:-0.5px;">What's the food?</h3>
+            <input value="{{ addWhat }}" onInput="{{ onWhat }}" placeholder="e.g. Free pizza, leftover bagels" style="width:100%;font-family:'Space Mono',monospace;font-size:14px;background:#FFFDF7;border:2px solid #1B1712;border-radius:8px;padding:12px;margin-bottom:12px;">
+            <div style="display:flex;flex-wrap:wrap;gap:8px;">
+              <sc-for list="{{ foodChips }}" as="c" hint-placeholder-count="4">
+                <button onClick="{{ c.onClick }}" style="font-family:'Space Mono',monospace;font-size:12px;font-weight:700;background:{{ c.bg }};color:{{ c.color }};border:2px solid #1B1712;border-radius:20px;cursor:pointer;padding:7px 13px;">{{ c.label }}</button>
+              </sc-for>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ addS3 }}" hint-placeholder-val="{{ false }}">
+            <h3 style="font-family:Archivo;font-weight:900;font-size:22px;margin:0 0 14px;letter-spacing:-0.5px;">How long will it last?</h3>
+            <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;">
+              <sc-for list="{{ lastChips }}" as="c" hint-placeholder-count="4">
+                <button onClick="{{ c.onClick }}" style="font-family:'Space Mono',monospace;font-size:12px;font-weight:700;background:{{ c.bg }};color:{{ c.color }};border:2px solid #1B1712;border-radius:20px;cursor:pointer;padding:8px 14px;">{{ c.label }}</button>
+              </sc-for>
+            </div>
+            <div style="background:#F5EDDC;border:2px dashed #1B1712;border-radius:8px;padding:12px 14px;font-family:'Space Mono',monospace;font-size:12.5px;color:#4A423A;line-height:1.7;">
+              <div>WHERE · {{ addWhereOut }}</div>
+              <div>FOOD&nbsp;&nbsp;· {{ addWhatOut }}</div>
+              <div>LASTS&nbsp;· {{ addLastOut }}</div>
+            </div>
+          </sc-if>
+
+          <div style="display:flex;gap:10px;margin-top:22px;">
+            <sc-if value="{{ addCanBack }}" hint-placeholder-val="{{ false }}">
+              <button onClick="{{ addBack }}" style="font-family:Archivo;font-weight:700;font-size:14px;background:none;color:#1B1712;border:2px solid #1B1712;border-radius:8px;cursor:pointer;padding:12px 18px;">← Back</button>
+            </sc-if>
+            <button onClick="{{ addNext }}" style="flex:1;font-family:Archivo;font-weight:800;font-size:15px;background:{{ addNextBg }};color:#FBF7EE;border:2.5px solid #1B1712;border-radius:9px;box-shadow:3px 3px 0 rgba(27,23,18,0.7);cursor:pointer;padding:12px;">{{ addNextLabel }}</button>
+          </div>
+        </div>
+        </sc-if>
+      </div>
+    </div>
+  </sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1200,&quot;height&quot;:860}}">
+class Component extends DCLogic {
+  state = {
+    screen: 'dashboard',
+    filters: { budget: 'u10', time: 'now', area: 'anywhere' },
+    detailId: null,
+    modal: null,
+    add: { step: 1, where: '', what: '', last: '' },
+    addDone: false,
+    userTickets: [],
+    override: {},
+    confirm: {},
+    toast: '',
+    pasteText: "CS Club Sponsor Night is TONIGHT! Free pizza in Quad 1043 from 6pm to 8pm. Open to all students, first come first served. No RSVP needed.",
+    extracted: null,
+    posted: false,
+  };
+
+  baseTickets = [
+    { id:'t1', no:'1043', name:'Free Pizza — Sponsor Night', source:'CS Club', cost:0, area:'quad', time:'now', walk:6, where:'Quad 1043', ends:'ends 2:00pm', access:'Open to attendees', confirmed:'8 min ago', worth:'high', status:'available', blurb:'Sponsor bought 40 pies for the info session. Grab a slice at the back tables — no sign-in checked at the door.' },
+    { id:'t2', no:'0210', name:'Bagels & Coffee — Dept Mixer', source:'Physics Dept', cost:0, area:'library', time:'now', walk:3, where:'Library Atrium', ends:'ends 11:30am', access:'Open to all', confirmed:'2 min ago', worth:'high', status:'available', blurb:'Morning mixer spread. Fresh bagels, cream cheese, and a full coffee urn. Closest free food to the main study floors.' },
+    { id:'t7', no:'0330', name:'Free Snacks — Study Lounge', source:'Library Services', cost:0, area:'library', time:'now', walk:4, where:'Library 3F', ends:'restocks hourly', access:'Open to all', confirmed:'12 min ago', worth:'high', status:'available', blurb:'Finals-week snack station: granola bars, clementines, pretzels. Restocked on the hour by front-desk staff.' },
+    { id:'t3', no:'5521', name:'$2 Grilled Cheese — Co-op', source:'Student Co-op', cost:2, area:'lower', time:'now', walk:11, where:'Lower Commons', ends:'until sold out', access:'Cash only', confirmed:'20 min ago', worth:'maybe', status:'available', blurb:'Co-op fundraiser griddle. Two bucks, cash in the jar. Worth it if you were already headed to Lower Campus.' },
+    { id:'t4', no:'7788', name:'Leftover Sandwiches — Career Fair', source:'Career Center', cost:0, area:'quad', time:'now', walk:8, where:'Union Hall 2F', ends:'ends 1:00pm', access:'Open to all', confirmed:'35 min ago', worth:'maybe', status:'maybe', blurb:'Boxed sandwiches left over from the recruiter lunch. Going fast — last confirmed count was about a dozen.' },
+    { id:'t6', no:'3102', name:'$5 Taco Bar — Cultural Night', source:'Latin Student Union', cost:5, area:'lower', time:'today', walk:14, where:'International House', ends:'starts 6:00pm', access:'Ticketed at door', confirmed:'1 hr ago', worth:'maybe', status:'available', blurb:'Full taco bar tonight. Five dollars gets you a plate and a drink. Long walk, but a real meal — not just snacks.' },
+    { id:'t5', no:'9014', name:'Free Donuts — Frat Tabling', source:'Sigma Chi', cost:0, area:'quad', time:'now', walk:5, where:'Quad Lawn', ends:'gone', access:'Open to all', confirmed:'1 min ago', worth:'low', status:'gone', blurb:'Tabling giveaway that just wrapped. Box was reported empty a minute ago — skip it unless you are already passing by.' },
+  ];
+
+  worthColors = { high:'#3C7A45', maybe:'#B7791F', low:'#C0341D' };
+  worthLabels = { high:'GO NOW', maybe:'MAYBE', low:'SKIP' };
+  statusColors = { available:'#3C7A45', maybe:'#B7791F', gone:'#C0341D' };
+  statusLabels = { available:'AVAILABLE', maybe:'HOLD?', gone:'GONE' };
+  worthRank(w){ return w==='high'?0:(w==='maybe'?1:2); }
+
+  allTickets(){ return this.state.userTickets.concat(this.baseTickets); }
+
+  effStatus(t){ return this.state.override[t.id] || t.status; }
+
+  filtered(){
+    const f = this.state.filters;
+    let list = this.allTickets().filter(t=>{
+      if(f.budget==='free' && t.cost!==0) return false;
+      if(f.budget==='u5' && t.cost>=5) return false;
+      if(f.budget==='u10' && t.cost>=10) return false;
+      if(f.time==='now' && t.time!=='now') return false;
+      if(f.time==='hour' && !(t.time==='now'||t.time==='hour')) return false;
+      if(f.area!=='anywhere' && t.area!==f.area) return false;
+      return true;
+    });
+    list.sort((a,b)=>{
+      const ga = this.effStatus(a)==='gone'?1:0, gb = this.effStatus(b)==='gone'?1:0;
+      if(ga!==gb) return ga-gb;
+      const wr = this.worthRank(a.worth)-this.worthRank(b.worth);
+      if(wr!==0) return wr;
+      return a.walk-b.walk;
+    });
+    return list;
+  }
+
+  toView(t){
+    const st = this.effStatus(t);
+    const gone = st==='gone';
+    return {
+      id:t.id, no:t.no, name:t.name, source:t.source, walk:t.walk, where:t.where,
+      ends: gone?'gone':t.ends,
+      endsColor: gone?'#C0341D':'#E5431E',
+      access:t.access, confirmed:t.confirmed, blurb:t.blurb,
+      costLabel: t.cost===0?'FREE':'$'+t.cost,
+      costColor: t.cost===0?'#E5431E':'#1B1712',
+      worthLabel: this.worthLabels[t.worth], worthColor: this.worthColors[t.worth],
+      statusLabel: this.statusLabels[st], statusColor: this.statusColors[st],
+      confirmCount: (this.state.confirm[t.id] && this.state.confirm[t.id].count) || 3,
+      lastChecked: (this.state.confirm[t.id] && this.state.confirm[t.id].last) || '4 min ago',
+      onClick: ()=> this.openDetail(t.id),
+    };
+  }
+
+  // ---- navigation
+  goDash = ()=> this.setState({ screen:'dashboard' });
+  goResults = ()=> this.setState({ screen:'results' });
+  goPaste = ()=> this.setState({ screen:'paste' });
+  openDetail = (id)=> this.setState({ detailId:id, toast:'' });
+  closeDetail = ()=> this.setState({ detailId:null });
+  openAdd = ()=> this.setState({ modal:'add', addDone:false, add:{ step:1, where:'', what:'', last:'' } });
+  closeModal = ()=> this.setState({ modal:null });
+  stop = (e)=> e.stopPropagation();
+  setFilter = (key,val)=> this.setState(s=>({ filters:{ ...s.filters, [key]:val } }));
+  clearFilters = ()=> this.setState({ filters:{ budget:'u10', time:'today', area:'anywhere' } });
+
+  // ---- report
+  report = (kind)=>{
+    const id = this.state.detailId;
+    this.setState(s=>{
+      const cur = s.confirm[id] || { count:3, last:'4 min ago' };
+      let count = cur.count, last = 'just now', toast='', override = { ...s.override };
+      if(kind==='still'){ count = cur.count+1; toast='Marked still available — thanks!'; }
+      else if(kind==='gone'){ override[id]='gone'; toast='Reported gone. Others will see it now.'; }
+      else if(kind==='queue'){ toast='Long queue noted on the ticket.'; }
+      else if(kind==='members'){ toast='Access updated → members only.'; }
+      else if(kind==='all'){ override[id]='available'; toast='Access updated → open to all.'; }
+      return { confirm:{ ...s.confirm, [id]:{ count, last } }, override, toast };
+    });
+  };
+
+  // ---- quick add
+  onWhere = (e)=> this.setState(s=>({ add:{ ...s.add, where:e.target.value } }));
+  onWhat = (e)=> this.setState(s=>({ add:{ ...s.add, what:e.target.value } }));
+  addBack = ()=> this.setState(s=>({ add:{ ...s.add, step: Math.max(1, s.add.step-1) } }));
+  addNext = ()=>{
+    const a = this.state.add;
+    if(a.step<3){ this.setState({ add:{ ...a, step:a.step+1 } }); return; }
+    const areaMap = { 'Quad':'quad','Library':'library','Lower Campus':'lower' };
+    let area = 'quad';
+    Object.keys(areaMap).forEach(k=>{ if((a.where||'').toLowerCase().includes(k.toLowerCase())) area = areaMap[k]; });
+    const nt = {
+      id:'u'+Date.now(), no:String(1000+Math.floor(Math.random()*8999)),
+      name:(a.what||'Food').replace(/\b\w/g,c=>c.toUpperCase()), source:'Student report',
+      cost:0, area, time:'now', walk: 2+Math.floor(Math.random()*8),
+      where:a.where||'On campus', ends:(a.last||'until gone'), access:'Open to all',
+      confirmed:'just now', worth:'maybe', status:'available',
+      blurb:'Reported by a fellow student just now. Details are fresh but unverified — report back when you get there!'
+    };
+    this.setState(s=>({ userTickets:[nt, ...s.userTickets], addDone:true }));
+  };
+  finishAdd = ()=> this.setState({ modal:null, screen:'results' });
+
+  // ---- paste extract
+  onPaste = (e)=> this.setState({ pasteText:e.target.value, extracted:null, posted:false });
+  runExtract = ()=>{
+    const text = this.state.pasteText || '';
+    const foods = ['pizza','bagel','taco','donut','doughnut','sandwich','coffee','snack','burrito','noodle','curry','sushi','cookie','cake','wrap','fruit','salad'];
+    let food = null;
+    for(const w of foods){ if(new RegExp('\\b'+w,'i').test(text)){ food = w.charAt(0).toUpperCase()+w.slice(1); break; } }
+    let cost = null, costColor = '#1B1712';
+    if(/\bfree\b/i.test(text)){ cost='Free'; costColor='#E5431E'; }
+    else { const m = text.match(/\$\s?\d+(\.\d{2})?/); if(m){ cost = m[0].replace(/\s/,''); } }
+    let time = null;
+    const times = text.match(/\d{1,2}(:\d{2})?\s?(am|pm)/gi);
+    if(times){ time = times.slice(0,2).join('–').replace(/\s/g,''); }
+    let location = null;
+    const l1 = text.match(/\b(Quad|Room|Rm|Hall|Bldg|Building)\s?#?\d{2,4}\b/i);
+    const l2 = text.match(/\b[A-Z][a-zA-Z]+\s(Hall|Atrium|Lounge|Commons|Union|Library|Center|House|Auditorium|Lawn)\b/);
+    if(l1) location = l1[0]; else if(l2) location = l2[0];
+    let access = null;
+    if(/open to all|everyone|all (are )?welcome|no rsvp|first come/i.test(text)) access='Open to all';
+    else if(/member|rsvp|ticket|attendee|sign ?up|registration/i.test(text)) access='Members / RSVP';
+    const fields = { food, cost, time, location, access };
+    const labels = { food:'food', cost:'cost', time:'time', location:'location', access:'access rule' };
+    const missing = Object.keys(fields).filter(k=>!fields[k]).map(k=>labels[k]);
+    const found = 5 - missing.length;
+    const confidence = Math.round(found/5*100);
+    let confLabel='LOW', confColor='#C0341D';
+    if(confidence>=80){ confLabel='HIGH'; confColor='#3C7A45'; }
+    else if(confidence>=50){ confLabel='MEDIUM'; confColor='#B7791F'; }
+    this.setState({ extracted:{
+      food: food||'—', cost: cost||'—', costColor, time: time||'—',
+      location: location||'—', access: access||'—',
+      confidence, confLabel, confColor,
+      missing, missingText: missing.join(', '), hasMissing: missing.length>0,
+    }, posted:false });
+  };
+  postPaste = ()=>{
+    const ex = this.state.extracted; if(!ex) return;
+    const nt = {
+      id:'p'+Date.now(), no:String(1000+Math.floor(Math.random()*8999)),
+      name:(ex.food!=='—'?ex.food:'Event food')+' — from post', source:'Pasted post',
+      cost: ex.cost==='Free'?0:(parseInt((ex.cost||'').replace(/\D/g,''))||0),
+      area:'quad', time:'now', walk:2+Math.floor(Math.random()*8),
+      where: ex.location!=='—'?ex.location:'See post', ends: ex.time!=='—'?('ends '+ex.time.split('–').pop()):'see post',
+      access: ex.access!=='—'?ex.access:'See post', confirmed:'just now',
+      worth: ex.confidence>=80?'high':'maybe', status:'available',
+      blurb:'Auto-read from a pasted event post. Confidence '+ex.confidence+'%. Double-check details when you arrive.'
+    };
+    this.setState(s=>({ userTickets:[nt, ...s.userTickets], posted:true }));
+  };
+
+  chip(active){ return active ? { bg:'#1B1712', color:'#FBF7EE' } : { bg:'transparent', color:'#1B1712' }; }
+  pill(active){ return active ? { bg:'#E5431E', color:'#FBF7EE' } : { bg:'#FFFDF7', color:'#1B1712' }; }
+
+  renderVals(){
+    const s = this.state;
+    const list = this.filtered();
+    const views = list.map(t=>this.toView(t));
+    const hasResults = views.length>0;
+
+    // filters
+    const groups = [
+      { name:'BUDGET', key:'budget', opts:[['free','$0'],['u5','Under $5'],['u10','Under $10']] },
+      { name:'WHEN', key:'time', opts:[['now','Now'],['hour','Next hour'],['today','Today']] },
+      { name:'AREA', key:'area', opts:[['quad','Quad'],['library','Library'],['lower','Lower Campus'],['anywhere','Anywhere']] },
+    ];
+    const filterGroups = groups.map(g=>({
+      name:g.name,
+      options: g.opts.map(([val,label])=>{
+        const active = s.filters[g.key]===val;
+        const c = this.chip(active);
+        return { label, bg:c.bg, color:c.color, onClick:()=>this.setFilter(g.key,val) };
+      })
+    }));
+
+    // detail
+    const detailT = s.detailId ? this.allTickets().find(t=>t.id===s.detailId) : null;
+    const detail = detailT ? this.toView(detailT) : {};
+    const rc = this.worthColors;
+    const reportButtons = [
+      { label:'Still available', color:'#3C7A45', onClick:()=>this.report('still') },
+      { label:'Food gone', color:'#C0341D', onClick:()=>this.report('gone') },
+      { label:'Long queue', color:'#B7791F', onClick:()=>this.report('queue') },
+      { label:'Members only', color:'#B7791F', onClick:()=>this.report('members') },
+      { label:'Open to all', color:'#3C7A45', onClick:()=>this.report('all') },
+    ];
+
+    // add flow
+    const a = s.add;
+    const areaChips = ['Quad','Library','Lower Campus','Union'].map(l=>{
+      const active = (a.where||'')===l; const c=this.pill(active);
+      return { label:l, bg:c.bg, color:c.color, onClick:()=>this.setState(st=>({ add:{ ...st.add, where:l } })) };
+    });
+    const foodChips = ['Pizza','Bagels','Snacks','Tacos','Coffee','Sandwiches'].map(l=>{
+      const active = (a.what||'')===l; const c=this.pill(active);
+      return { label:l, bg:c.bg, color:c.color, onClick:()=>this.setState(st=>({ add:{ ...st.add, what:l } })) };
+    });
+    const lastChips = ['15 min','30 min','1 hour','Until it\u2019s gone'].map(l=>{
+      const active = (a.last||'')===l; const c=this.pill(active);
+      return { label:l, bg:c.bg, color:c.color, onClick:()=>this.setState(st=>({ add:{ ...st.add, last:l } })) };
+    });
+    const addSteps = [1,2,3].map(n=>({ color: n<=a.step ? '#E5431E' : '#e0d6c1' }));
+    const stepValid = (a.step===1 && a.where.trim()) || (a.step===2 && a.what.trim()) || (a.step===3 && a.last.trim());
+
+    return {
+      isDash: s.screen==='dashboard', isResults: s.screen==='results', isPaste: s.screen==='paste',
+      navDashColor: s.screen==='dashboard'?'#E5431E':'#1B1712',
+      navResultsColor: s.screen==='results'?'#E5431E':'#1B1712',
+      navPasteColor: s.screen==='paste'?'#E5431E':'#1B1712',
+      goDash:this.goDash, goResults:this.goResults, goPaste:this.goPaste, openAdd:this.openAdd,
+      filterGroups,
+      bestTickets: views.slice(0,3),
+      rankedTickets: views.map((v,i)=>({ ...v, rank:i+1 })),
+      hasResults, noResults: !hasResults, resultCount: views.length,
+      clearFilters: this.clearFilters,
+      // detail
+      detailOpen: !!detailT, detail, closeDetail:this.closeDetail, reportButtons,
+      toast:s.toast, hasToast: !!s.toast,
+      // add modal
+      modalAdd: s.modal==='add', addDone:s.addDone, addForm: !s.addDone,
+      addSteps, addStepNum:a.step,
+      addS1:a.step===1, addS2:a.step===2, addS3:a.step===3,
+      addWhere:a.where, addWhat:a.what,
+      addWhereOut:a.where||'—', addWhatOut:a.what||'—', addLastOut:a.last||'—',
+      areaChips, foodChips, lastChips,
+      onWhere:this.onWhere, onWhat:this.onWhat,
+      addBack:this.addBack, addNext:this.addNext, addCanBack:a.step>1,
+      addNextLabel: a.step<3 ? 'Next →' : 'Help students find this',
+      addNextBg: stepValid ? '#E5431E' : '#c9beac',
+      closeModal:this.closeModal, stop:this.stop, finishAdd:this.finishAdd,
+      // paste
+      pasteText:s.pasteText, onPaste:this.onPaste, runExtract:this.runExtract,
+      hasExtract: !!s.extracted, noExtract: !s.extracted, ext: s.extracted||{},
+      posted:s.posted, notPosted: !s.posted, postPaste:this.postPaste,
+    };
+  }
+}
+</script>
+</body>
+</html>

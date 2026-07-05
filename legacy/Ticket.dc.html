@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<div onClick="{{ t.onClick }}" style="cursor:pointer;background:#FBF7EE;border:2.5px solid #1B1712;border-radius:15px 12px 16px 13px;box-shadow:4px 5px 0 rgba(27,23,18,0.88);position:relative;display:grid;grid-template-columns:1fr 116px;overflow:hidden;transition:transform .12s ease, box-shadow .12s ease;" style-hover="transform:translate(-2px,-2px);box-shadow:7px 9px 0 rgba(27,23,18,0.9);">
+  <div style="padding:15px 15px 15px 17px;display:flex;flex-direction:column;gap:8px;min-width:0;">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;font-family:'Space Mono',monospace;font-size:11px;letter-spacing:1px;color:#7a6f61;">
+      <span>NO. {{ t.no }}</span>
+      <span style="border:1.5px solid {{ t.statusColor }};color:{{ t.statusColor }};padding:2px 6px;border-radius:4px;transform:rotate(-2.5deg);font-weight:700;letter-spacing:1.5px;">{{ t.statusLabel }}</span>
+    </div>
+    <div style="font-family:Archivo;font-weight:800;font-size:20px;line-height:1.05;letter-spacing:-0.4px;color:#1B1712;">{{ t.name }}</div>
+    <div style="font-family:'Space Mono',monospace;font-size:12px;color:#8a7d6c;">via {{ t.source }}</div>
+    <div style="border-top:2px dashed #d9cdb5;margin:3px 0 1px;"></div>
+    <div style="display:grid;grid-template-columns:auto 1fr;gap:5px 12px;font-family:'Space Mono',monospace;font-size:12px;">
+      <span style="color:#9a8d7a;">COST</span><span style="color:{{ t.costColor }};font-weight:700;">{{ t.costLabel }}</span>
+      <span style="color:#9a8d7a;">WHERE</span><span style="color:#1B1712;">{{ t.where }}</span>
+      <span style="color:#9a8d7a;">ENDS</span><span style="color:{{ t.endsColor }};font-weight:700;">{{ t.ends }}</span>
+      <span style="color:#9a8d7a;">ACCESS</span><span style="color:#1B1712;">{{ t.access }}</span>
+      <span style="color:#9a8d7a;">SEEN</span><span style="color:#1B1712;">{{ t.confirmed }}</span>
+    </div>
+  </div>
+  <div style="position:relative;border-left:2px dashed #1B1712;background:#F5EDDC;display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:15px 6px;gap:8px;">
+    <div style="position:absolute;left:-9px;top:-9px;width:16px;height:16px;border-radius:50%;background:#F1E9D8;border:2.5px solid #1B1712;"></div>
+    <div style="position:absolute;left:-9px;bottom:-9px;width:16px;height:16px;border-radius:50%;background:#F1E9D8;border:2.5px solid #1B1712;"></div>
+    <div style="text-align:center;">
+      <div style="font-family:'Space Mono',monospace;font-weight:700;font-size:27px;color:#1B1712;line-height:1;">{{ t.walk }}</div>
+      <div style="font-family:'Space Mono',monospace;font-size:9px;letter-spacing:1px;color:#8a7d6c;margin-top:2px;">MIN WALK</div>
+    </div>
+    <div style="font-family:Archivo;font-weight:900;font-size:14px;letter-spacing:0.4px;color:{{ t.worthColor }};border:2.5px solid {{ t.worthColor }};border-radius:6px;padding:5px 6px;text-align:center;transform:rotate(-7deg);line-height:1.05;">{{ t.worthLabel }}</div>
+    <div style="font-family:'Space Mono',monospace;font-size:9px;letter-spacing:1px;color:#8a7d6c;">DETAILS →</div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:360,&quot;height&quot;:232},&quot;t&quot;:{&quot;editor&quot;:null,&quot;tsType&quot;:&quot;any&quot;}}"></script>
+</body>
+</html>

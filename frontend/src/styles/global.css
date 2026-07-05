@@ -1,0 +1,147 @@
+:root {
+  --mm-bg: #f1e9d8;
+  --mm-surface: #fbf7ee;
+  --mm-ink: #1b1712;
+  --mm-accent: #e5431e;
+  --mm-muted: #8a7d6c;
+  --mm-green: #3c7a45;
+  --mm-amber: #b7791f;
+  --mm-red: #c0341d;
+  --font-sans: "Archivo", sans-serif;
+  --font-mono: "Space Mono", monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  background: var(--mm-bg);
+  color: var(--mm-ink);
+  font-family: var(--font-sans);
+}
+
+textarea:focus,
+input:focus {
+  outline: 2px solid var(--mm-accent);
+  outline-offset: 0;
+}
+
+@keyframes mm-stampIn {
+  0% {
+    transform: scale(1.7) rotate(-16deg);
+    opacity: 0;
+  }
+  55% {
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1) rotate(-8deg);
+    opacity: 1;
+  }
+}
+
+@keyframes mm-slideOver {
+  from {
+    transform: translateX(102%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes mm-fadeUp {
+  from {
+    transform: translateY(14px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes mm-print {
+  from {
+    clip-path: inset(0 0 100% 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+@keyframes mm-scrim {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.mm-page {
+  min-height: 100vh;
+  background-color: var(--mm-bg);
+  background-image: radial-gradient(
+    circle,
+    rgba(27, 23, 18, 0.05) 0.6px,
+    transparent 0.7px
+  );
+  background-size: 6px 6px;
+}
+
+.mm-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px 26px 90px;
+}
+
+.mm-fade-up {
+  animation: mm-fadeUp 0.3s ease both;
+}
+
+.mm-btn-primary {
+  font-family: var(--font-sans);
+  font-weight: 800;
+  font-size: 13px;
+  letter-spacing: 0.3px;
+  background: var(--mm-accent);
+  color: var(--mm-surface);
+  border: 2.5px solid var(--mm-ink);
+  border-radius: 8px 6px 8px 6px;
+  box-shadow: 3px 3px 0 rgba(27, 23, 18, 0.85);
+  cursor: pointer;
+  padding: 9px 15px;
+  transform: rotate(-1.5deg);
+}
+
+.mm-btn-primary:hover {
+  transform: rotate(-1.5deg) translate(-1px, -1px);
+  box-shadow: 4px 4px 0 rgba(27, 23, 18, 0.9);
+}
+
+.mm-link-back {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  color: var(--mm-muted);
+}
+
+.mm-panel {
+  background: var(--mm-surface);
+  border: 2.5px solid var(--mm-ink);
+  border-radius: 12px;
+  box-shadow: 4px 4px 0 rgba(27, 23, 18, 0.85);
+}
