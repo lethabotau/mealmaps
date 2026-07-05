@@ -2,11 +2,33 @@ import Anthropic from "@anthropic-ai/sdk";
 import {
   EXTRACT_FIELDS,
   extractFromPost,
+  type Allergen,
+  type DietTag,
   type ExtractField,
   type ExtractResult,
   type FieldConfidence,
   type TimeNormalized,
 } from "@mealmap/shared";
+
+const DIET_TAG_VALUES: DietTag[] = [
+  "vegan",
+  "vegetarian",
+  "halal",
+  "kosher",
+  "gluten-free",
+  "dairy-free",
+];
+
+const ALLERGEN_VALUES: Allergen[] = [
+  "nuts",
+  "peanuts",
+  "dairy",
+  "gluten",
+  "egg",
+  "soy",
+  "shellfish",
+  "sesame",
+];
 
 const MODEL = "claude-haiku-4-5";
 const MAX_TOKENS = 1000;
@@ -45,6 +67,15 @@ Also return:
 - missing: an array of the field names (food, cost, time, location, access) that are not stated in the post
 - plausible: boolean — false if the text does not look like a genuine campus food event (gibberish, trolling, clearly off-campus, or no food involved)
 - plausibility_reason: one short line explaining the plausible value
+- dietary_tags: array of diet tags EXPLICITLY stated or unambiguously implied by the post, using only these values: ${DIET_TAG_VALUES.join(", ")}. Empty array if none stated.
+- allergens: array of allergens EXPLICITLY stated as present in the food, using only these values: ${ALLERGEN_VALUES.join(", ")}. Empty array if none stated.
+- dietary_confidence: an object mapping "tags" and "allergens" each to "high", "medium", or "low"
+
+Dietary rules — these are safety-critical, read carefully:
+- Empty dietary_tags/allergens arrays mean UNKNOWN, not "confirmed none present". Never imply a food is safe by omission.
+- Never infer transitively: "vegan" does NOT imply dairy-free is confirmed absent unless dairy-free is separately and explicitly stated; a dish being vegetarian says nothing about nut content.
+- Only extract a tag/allergen if the post states it or a very common dish name unambiguously implies it (e.g. "cheese pizza" implies dairy). When in doubt, leave it out — a false negative here is safer than a false positive on food safety data.
+- Any tag/allergen you infer rather than read verbatim gets at most "medium" confidence in dietary_confidence.
 
 Interpretation rules:
 - You MAY resolve relative references ("rn", "tmrw", "this arvo") into concrete values — that is interpreting stated facts.
@@ -54,7 +85,7 @@ Interpretation rules:
 - Respond with ONLY the JSON object. No prose, no markdown code fences.
 
 Use exactly this JSON shape:
-{"food":null,"cost":null,"time":null,"location":null,"access":null,"confidence":{"food":"low","cost":"low","time":"low","location":"low","access":"low"},"time_normalized":null,"cost_cents":null,"missing":[],"plausible":true,"plausibility_reason":""}`;
+{"food":null,"cost":null,"time":null,"location":null,"access":null,"confidence":{"food":"low","cost":"low","time":"low","location":"low","access":"low"},"time_normalized":null,"cost_cents":null,"missing":[],"plausible":true,"plausibility_reason":"","dietary_tags":[],"allergens":[],"dietary_confidence":{"tags":"low","allergens":"low"}}`;
 }
 
 const CONFIDENCE_VALUES: FieldConfidence[] = ["high", "medium", "low"];
@@ -97,6 +128,22 @@ function coerceTimeNormalized(value: unknown): TimeNormalized | null {
     start: coerceString(v.start),
     confidence,
   };
+}
+
+function coerceDietTags(value: unknown): DietTag[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter(
+    (v): v is DietTag =>
+      typeof v === "string" && (DIET_TAG_VALUES as string[]).includes(v),
+  );
+}
+
+function coerceAllergens(value: unknown): Allergen[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter(
+    (v): v is Allergen =>
+      typeof v === "string" && (ALLERGEN_VALUES as string[]).includes(v),
+  );
 }
 
 function coerceCents(value: unknown): number | null {
@@ -143,6 +190,11 @@ function normalize(parsed: unknown): ExtractResult {
 
   const missing = EXTRACT_FIELDS.filter((field) => extraction[field] === null);
 
+  const dietaryConfidenceSource =
+    root.dietary_confidence && typeof root.dietary_confidence === "object"
+      ? (root.dietary_confidence as Record<string, unknown>)
+      : {};
+
   return {
     extraction,
     confidence,
@@ -152,6 +204,14 @@ function normalize(parsed: unknown): ExtractResult {
     plausible: root.plausible !== false,
     plausibility_reason: coerceString(root.plausibility_reason) ?? "",
     source: "llm",
+    dietary: {
+      tags: coerceDietTags(root.dietary_tags),
+      allergens: coerceAllergens(root.allergens),
+      confidence: {
+        tags: coerceConfidence(dietaryConfidenceSource.tags),
+        allergens: coerceConfidence(dietaryConfidenceSource.allergens),
+      },
+    },
   };
 }
 
@@ -216,5 +276,13 @@ export function regexToExtractResult(text: string): ExtractResult {
     plausible: true,
     plausibility_reason: "Extracted with keyword fallback.",
     source: "regex",
+    // Dietary/allergen data is not safely inferable via keyword regex — a
+    // wrong guess here is actively harmful (unlike a wrong guess on "cost" or
+    // "time"). Always report unknown rather than attempt keyword matching.
+    dietary: {
+      tags: [],
+      allergens: [],
+      confidence: { tags: "low", allergens: "low" },
+    },
   };
 }

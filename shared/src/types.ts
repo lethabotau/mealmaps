@@ -25,6 +25,39 @@ export interface UserIdentity {
   displayName: string;
 }
 
+/** Diet a ticket's food is suitable for. */
+export type DietTag =
+  | "vegan"
+  | "vegetarian"
+  | "halal"
+  | "kosher"
+  | "gluten-free"
+  | "dairy-free";
+
+/** Allergen a ticket's food may contain. */
+export type Allergen =
+  | "nuts"
+  | "peanuts"
+  | "dairy"
+  | "gluten"
+  | "egg"
+  | "soy"
+  | "shellfish"
+  | "sesame";
+
+/**
+ * Dietary/allergen info for a ticket. Absent (not this object with empty
+ * arrays, but the whole field) means "never checked" — shown as unconfirmed,
+ * never treated as "nothing to worry about". Empty arrays mean "checked,
+ * nothing stated" and are just as unconfirmed for allergen safety purposes as
+ * absent — see `dietaryConflicts` in tickets.ts.
+ */
+export interface TicketDietary {
+  tags: DietTag[];
+  allergens: Allergen[];
+  confidence: number;
+}
+
 /** Approximate geographic coordinates (WGS84). */
 export interface Coords {
   lat: number;
@@ -72,6 +105,8 @@ export interface Ticket {
   foodLikelihood?: "high" | "medium";
   /** Auto-ingest classifier reason — stored for deck/Q&A, not shown in UI. */
   classifyReason?: string;
+  /** Dietary tags/allergens. Absent = never checked (shown as unconfirmed). */
+  dietary?: TicketDietary;
 }
 
 export interface TicketConfirmMeta {
@@ -98,6 +133,14 @@ export interface Filters {
   /** When true, only show tickets with cost === 0. */
   freeOnly: boolean;
   time: "now" | "hour" | "today";
+  /** When true, hide tickets that conflict with the user's dietary profile. */
+  safeForMe: boolean;
+}
+
+/** User's own allergens-to-avoid and diets-wanted, stored in localStorage. */
+export interface DietaryProfile {
+  avoidAllergens: Allergen[];
+  wantTags: DietTag[];
 }
 
 export type Screen = "dashboard" | "results" | "paste" | "assistant";
@@ -145,6 +188,8 @@ export interface ExtractedPost {
   timeWindow?: TimeWindow;
   /** Normalized cost in integer cents, carried through to ticket cost. */
   costCents?: number | null;
+  /** Dietary tags/allergens read from the post, or undefined if none found. */
+  dietary?: TicketDietary;
 }
 
 /** Fields extracted from a pasted event post. */
@@ -180,6 +225,16 @@ export interface ExtractResult {
   plausible: boolean;
   plausibility_reason: string;
   source: "llm" | "regex";
+  /**
+   * Dietary tags/allergens read from the post, or null if the model/regex
+   * found nothing. Kept separate from `EXTRACT_FIELDS`/`confidence` since it
+   * doesn't feed the "is this post real" aggregate score.
+   */
+  dietary: {
+    tags: DietTag[];
+    allergens: Allergen[];
+    confidence: Record<"tags" | "allergens", FieldConfidence>;
+  } | null;
 }
 
 export interface CreateTicketInput {
@@ -194,6 +249,7 @@ export interface CreateTicketInput {
   worth?: WorthLevel;
   status?: TicketStatus;
   blurb: string;
+  dietary?: TicketDietary;
 }
 
 export interface TicketView extends Ticket {

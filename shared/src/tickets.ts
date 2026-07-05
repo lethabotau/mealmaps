@@ -1,7 +1,10 @@
 import type {
+  Allergen,
   AssistantTicketContext,
   CampusArea,
   CreateTicketInput,
+  DietaryProfile,
+  DietTag,
   ExtractedPost,
   ExtractField,
   ExtractResult,
@@ -58,7 +61,61 @@ export const STATUS_LABELS: Record<TicketStatus, string> = {
 export const DEFAULT_FILTERS: Filters = {
   freeOnly: false,
   time: "today",
+  safeForMe: false,
 };
+
+export const DIET_TAG_LABELS: Record<DietTag, string> = {
+  vegan: "Vegan",
+  vegetarian: "Vegetarian",
+  halal: "Halal",
+  kosher: "Kosher",
+  "gluten-free": "Gluten-free",
+  "dairy-free": "Dairy-free",
+};
+
+export const ALLERGEN_LABELS: Record<Allergen, string> = {
+  nuts: "Nuts",
+  peanuts: "Peanuts",
+  dairy: "Dairy",
+  gluten: "Gluten",
+  egg: "Egg",
+  soy: "Soy",
+  shellfish: "Shellfish",
+  sesame: "Sesame",
+};
+
+export const DEFAULT_DIETARY_PROFILE: DietaryProfile = {
+  avoidAllergens: [],
+  wantTags: [],
+};
+
+/** True when a ticket is known (via confirmed dietary info) to conflict with the profile. */
+export function dietaryConflicts(ticket: Ticket, profile: DietaryProfile): boolean {
+  if (!ticket.dietary) return false;
+  const { allergens, tags } = ticket.dietary;
+  if (profile.avoidAllergens.some((allergen) => allergens.includes(allergen))) {
+    return true;
+  }
+  if (
+    profile.wantTags.length > 0 &&
+    !profile.wantTags.every((tag) => tags.includes(tag))
+  ) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Badge for a ticket's dietary info — shown to every viewer, not just those
+ * with a profile set. "conflict" means the ticket has known allergens (an
+ * always-visible "contains X" warning). Unknown dietary info is always
+ * flagged as "unconfirmed", never hidden or treated as safe.
+ */
+export function dietaryBadgeFor(ticket: Ticket): "conflict" | "unconfirmed" | "clear" {
+  if (!ticket.dietary) return "unconfirmed";
+  if (ticket.dietary.allergens.length > 0) return "conflict";
+  return "clear";
+}
 
 /** Map stored ticket area (incl. legacy quad/library) to upper/lower show zones. */
 export function normalizeArea(
@@ -206,6 +263,7 @@ export function filterTickets(
   filters: Filters,
   overrides: TicketOverrides = {},
   vantage: CampusArea = "upper",
+  dietaryProfile?: DietaryProfile,
 ): Ticket[] {
   const list = tickets.filter((ticket) => {
     if (filters.freeOnly && !isFreeCost(ticket.cost)) return false;
@@ -213,6 +271,13 @@ export function filterTickets(
     if (
       filters.time === "hour" &&
       !(ticket.time === "now" || ticket.time === "hour")
+    ) {
+      return false;
+    }
+    if (
+      filters.safeForMe &&
+      dietaryProfile &&
+      dietaryConflicts(ticket, dietaryProfile)
     ) {
       return false;
     }
@@ -299,7 +364,13 @@ export function buildQuickAddTicket(input: {
   where: string;
   what: string;
   last: string;
+  dietTags?: DietTag[];
+  allergens?: Allergen[];
 }): CreateTicketInput {
+  const dietTags = input.dietTags ?? [];
+  const allergens = input.allergens ?? [];
+  const hasDietaryInput = dietTags.length > 0 || allergens.length > 0;
+
   return {
     name: (input.what || "Food").replace(/\b\w/g, (c) => c.toUpperCase()),
     source: "Student report",
@@ -313,6 +384,9 @@ export function buildQuickAddTicket(input: {
     status: "available",
     blurb:
       "Reported by a fellow student just now. Details are fresh but unverified — report back when you get there!",
+    dietary: hasDietaryInput
+      ? { tags: dietTags, allergens, confidence: 100 }
+      : undefined,
   };
 }
 
@@ -342,6 +416,7 @@ export function buildTicketFromExtracted(extracted: ExtractedPost): CreateTicket
     worth: extracted.confidence >= 80 ? "high" : "maybe",
     status: "available",
     blurb: `Auto-read from a pasted event post. Confidence ${extracted.confidence}%. Double-check details when you arrive.`,
+    dietary: extracted.dietary,
   };
 }
 
@@ -437,6 +512,18 @@ export function extractResultToPost(result: ExtractResult): ExtractedPost {
     hasMissing: missingLabels.length > 0,
     timeWindow: timeWindowFromNormalized(result.time_normalized),
     costCents: result.cost_cents,
+    dietary: result.dietary
+      ? {
+          tags: result.dietary.tags,
+          allergens: result.dietary.allergens,
+          confidence: Math.round(
+            ((CONFIDENCE_WEIGHT[result.dietary.confidence.tags] +
+              CONFIDENCE_WEIGHT[result.dietary.confidence.allergens]) /
+              2) *
+              100,
+          ),
+        }
+      : undefined,
   };
 }
 

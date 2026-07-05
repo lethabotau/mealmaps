@@ -1,5 +1,23 @@
-import { useEffect, useState } from "react";
-import { buildQuickAddTicket } from "@mealmap/shared";
+import { useState } from "react";
+import {
+  ALLERGEN_LABELS,
+  buildQuickAddTicket,
+  DIET_TAG_LABELS,
+  type Allergen,
+  type DietTag,
+} from "@mealmap/shared";
+import { useDialog } from "../hooks/useDialog";
+import { MultiSelectChips } from "./MultiSelectChips";
+import { chipColors } from "../lib/uiHelpers";
+
+const DIET_TAG_OPTIONS = (Object.keys(DIET_TAG_LABELS) as DietTag[]).map((value) => ({
+  value,
+  label: DIET_TAG_LABELS[value],
+}));
+const ALLERGEN_OPTIONS = (Object.keys(ALLERGEN_LABELS) as Allergen[]).map((value) => ({
+  value,
+  label: ALLERGEN_LABELS[value],
+}));
 
 interface AddFoodModalProps {
   onClose: () => void;
@@ -16,22 +34,25 @@ export function AddFoodModal({ onClose, onSubmit, onFinish }: AddFoodModalProps)
   const [where, setWhere] = useState("");
   const [what, setWhat] = useState("");
   const [last, setLast] = useState("");
+  const [dietTags, setDietTags] = useState<DietTag[]>([]);
+  const [allergens, setAllergens] = useState<Allergen[]>([]);
   const [done, setDone] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  // Close on Escape (unless a layer above, e.g. the sign-in overlay, consumed it).
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !e.defaultPrevented) onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  const { containerRef } = useDialog<HTMLDivElement>({ open: true, onClose });
 
-  const pill = (active: boolean) =>
-    active
-      ? { bg: "#E5431E", color: "#FBF7EE" }
-      : { bg: "#FFFDF7", color: "#1B1712" };
+  const pill = chipColors;
+
+  const toggleDietTag = (tag: DietTag) =>
+    setDietTags((prev) =>
+      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag],
+    );
+  const toggleAllergen = (allergen: Allergen) =>
+    setAllergens((prev) =>
+      prev.includes(allergen)
+        ? prev.filter((a) => a !== allergen)
+        : [...prev, allergen],
+    );
 
   const stepValid =
     (step === 1 && where.trim()) ||
@@ -46,7 +67,7 @@ export function AddFoodModal({ onClose, onSubmit, onFinish }: AddFoodModalProps)
 
     setSubmitting(true);
     try {
-      await onSubmit(buildQuickAddTicket({ where, what, last }));
+      await onSubmit(buildQuickAddTicket({ where, what, last, dietTags, allergens }));
       setDone(true);
     } finally {
       setSubmitting(false);
@@ -57,7 +78,14 @@ export function AddFoodModal({ onClose, onSubmit, onFinish }: AddFoodModalProps)
 
   return (
     <div onClick={onClose} className="mm-modal-overlay">
-      <div onClick={stop} className="mm-modal-sheet">
+      <div
+        onClick={stop}
+        className="mm-modal-sheet"
+        ref={containerRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Report food"
+      >
         <div
           style={{
             background: "#E5431E",
@@ -95,6 +123,7 @@ export function AddFoodModal({ onClose, onSubmit, onFinish }: AddFoodModalProps)
             }}
           >
             <span
+              className="mm-motion-stampIn"
               style={{
                 fontFamily: "var(--font-display)",
                 fontWeight: 800,
@@ -157,7 +186,7 @@ export function AddFoodModal({ onClose, onSubmit, onFinish }: AddFoodModalProps)
                 fontFamily: "var(--font-mono)",
                 fontSize: 11,
                 letterSpacing: "2px",
-                color: "#8a7d6c",
+                color: "#665a4a",
                 marginBottom: 6,
               }}
             >
@@ -246,6 +275,20 @@ export function AddFoodModal({ onClose, onSubmit, onFinish }: AddFoodModalProps)
                       </button>
                     );
                   })}
+                </div>
+                <div style={{ marginTop: 18, display: "flex", flexDirection: "column", gap: 14 }}>
+                  <MultiSelectChips
+                    label="DIET (optional)"
+                    options={DIET_TAG_OPTIONS}
+                    selected={dietTags}
+                    onToggle={toggleDietTag}
+                  />
+                  <MultiSelectChips
+                    label="CONTAINS (optional)"
+                    options={ALLERGEN_OPTIONS}
+                    selected={allergens}
+                    onToggle={toggleAllergen}
+                  />
                 </div>
               </>
             )}

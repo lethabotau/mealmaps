@@ -1,5 +1,6 @@
-import type { CampusArea, RankedTicketView } from "@mealmap/shared";
+import type { Allergen, CampusArea, DietaryProfile, DietTag, RankedTicketView } from "@mealmap/shared";
 import type { FilterGroup } from "../lib/uiHelpers";
+import { DietaryProfilePanel } from "./DietaryProfilePanel";
 import { EmptyState } from "./EmptyState";
 import { FilterBar } from "./FilterBar";
 import { TicketCard } from "./TicketCard";
@@ -11,6 +12,9 @@ interface RankedViewProps {
   filterGroups: FilterGroup[];
   rankedTickets: RankedTicketView[];
   resultCount: number;
+  dietaryProfile: DietaryProfile;
+  onToggleAllergen: (allergen: Allergen) => void;
+  onToggleTag: (tag: DietTag) => void;
   onGoDash: () => void;
   onClearFilters: () => void;
   onOpenAdd: () => void;
@@ -23,6 +27,9 @@ export function RankedView({
   filterGroups,
   rankedTickets,
   resultCount,
+  dietaryProfile,
+  onToggleAllergen,
+  onToggleTag,
   onGoDash,
   onClearFilters,
   onOpenAdd,
@@ -51,7 +58,7 @@ export function RankedView({
           style={{
             fontFamily: "var(--font-mono)",
             fontSize: 14,
-            color: "#8a7d6c",
+            color: "#665a4a",
           }}
         >
           {resultCount} on the pass
@@ -61,7 +68,7 @@ export function RankedView({
         style={{
           fontFamily: "var(--font-mono)",
           fontSize: 12.5,
-          color: "#8a7d6c",
+          color: "#665a4a",
           margin: "6px 0 20px",
           maxWidth: 600,
         }}
@@ -70,8 +77,15 @@ export function RankedView({
       </p>
 
       <VantageBar vantage={vantage} onChange={onVantageChange} />
-      <div className="mm-panel" style={{ margin: "0 0 26px", padding: "16px 18px" }}>
+      <div className="mm-panel" style={{ margin: "0 0 8px", padding: "16px 18px" }}>
         <FilterBar groups={filterGroups} embedded />
+      </div>
+      <div style={{ marginBottom: 26 }}>
+        <DietaryProfilePanel
+          profile={dietaryProfile}
+          onToggleAllergen={onToggleAllergen}
+          onToggleTag={onToggleTag}
+        />
       </div>
 
       {hasResults ? (

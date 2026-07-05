@@ -154,6 +154,7 @@ export function createTicket(
     status: input.status ?? "available",
     blurb: input.blurb,
     createdBy,
+    dietary: input.dietary,
   };
 
   state.tickets.unshift(ticket);
@@ -186,6 +187,7 @@ export interface AutoTicketInput {
   classifyReason?: string;
   venueHint?: string | null;
   onCampus?: boolean;
+  dietary?: Ticket["dietary"];
 }
 
 function resolveAutoTicketLocation(input: {
@@ -261,6 +263,7 @@ export function insertAutoTicket(
     trust: "unverified",
     foodLikelihood: input.foodLikelihood,
     classifyReason: input.classifyReason,
+    dietary: input.dietary,
   };
 
   state.tickets.push(ticket);

@@ -110,7 +110,7 @@ export function PasteView({
         style={{
           fontFamily: "var(--font-mono)",
           fontSize: 12.5,
-          color: "#8a7d6c",
+          color: "#665a4a",
           margin: "0 0 24px",
           maxWidth: 620,
         }}
@@ -126,7 +126,7 @@ export function PasteView({
               fontFamily: "var(--font-mono)",
               fontSize: 11,
               letterSpacing: "2px",
-              color: "#8a7d6c",
+              color: "#665a4a",
               marginBottom: 10,
             }}
           >
@@ -200,7 +200,7 @@ export function PasteView({
                   fontFamily: "var(--font-sans)",
                   fontWeight: 500,
                   fontSize: 16,
-                  color: "#8a7d6c",
+                  color: "#665a4a",
                 }}
               >
                 Reading the post…
@@ -310,7 +310,7 @@ export function PasteView({
                         : "#1B1712";
                     return (
                       <Fragment key={field}>
-                        <span style={{ color: "#9a8d7a" }}>
+                        <span style={{ color: "#6b5f4f" }}>
                           {EXTRACT_FIELD_LABELS[field]}
                         </span>
                         <span
@@ -400,7 +400,7 @@ export function PasteView({
                       style={{
                         fontFamily: "var(--font-mono)",
                         fontSize: 12,
-                        color: "#8a7d6c",
+                        color: "#665a4a",
                       }}
                     >
                       Now live on the pass.

@@ -17,7 +17,7 @@ export function OrderSlipBar({
   onVantageChange,
   filterGroups,
 }: OrderSlipBarProps) {
-  const freeOnlyGroup = filterGroups.find((group) => group.kind === "toggle");
+  const toggleGroups = filterGroups.filter((group) => group.kind === "toggle");
   const whenGroup = filterGroups.find((group) => group.name === "WHEN");
 
   return (
@@ -30,6 +30,7 @@ export function OrderSlipBar({
             <button
               key={value}
               type="button"
+              aria-pressed={active}
               className={`mm-order-slip-chip${active ? " is-active" : ""}`}
               onClick={() => onVantageChange(value)}
             >
@@ -43,12 +44,13 @@ export function OrderSlipBar({
         ·
       </span>
 
-      {freeOnlyGroup?.options.map((option) => (
+      {toggleGroups.flatMap((group) => group.options).map((option) => (
         <button
           key={option.label}
           type="button"
+          aria-pressed={option.active}
           className={`mm-order-slip-chip mm-order-slip-toggle${
-            option.bg === "#1B1712" ? " is-active" : ""
+            option.active ? " is-active" : ""
           }`}
           onClick={option.onClick}
         >
@@ -67,6 +69,7 @@ export function OrderSlipBar({
             <button
               key={option.label}
               type="button"
+              aria-pressed={option.active}
               className="mm-order-slip-segment-btn"
               onClick={option.onClick}
               style={{

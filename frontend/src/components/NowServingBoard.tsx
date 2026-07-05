@@ -1,4 +1,5 @@
 import type { TicketView } from "@mealmap/shared";
+import { ALLERGEN_LABELS, dietaryBadgeFor } from "@mealmap/shared";
 
 interface NowServingBoardProps {
   tickets: TicketView[];
@@ -26,6 +27,12 @@ function stampColor(ticket: TicketView): string {
   return ticket.trust === "unverified" ? "#B7791F" : ticket.worthColor;
 }
 
+function dietaryAriaSuffix(ticket: TicketView): string {
+  if (dietaryBadgeFor(ticket) !== "conflict" || !ticket.dietary) return "";
+  const allergens = ticket.dietary.allergens.map((a) => ALLERGEN_LABELS[a]).join(", ");
+  return `. Contains ${allergens}`;
+}
+
 export function NowServingBoard({ tickets, onSelectTicket }: NowServingBoardProps) {
   return (
     <div className="mm-now-serving">
@@ -51,7 +58,7 @@ export function NowServingBoard({ tickets, onSelectTicket }: NowServingBoardProp
               key={ticket.id}
               type="button"
               className="mm-now-serving-stub"
-              aria-label={`Open ${ticket.name}`}
+              aria-label={`Open ${ticket.name}${dietaryAriaSuffix(ticket)}`}
               onClick={() => onSelectTicket(ticket.id)}
               style={{
                 ["--stub-rotate" as string]: `${STUB_ROTATIONS[index] ?? -2}deg`,
@@ -74,6 +81,19 @@ export function NowServingBoard({ tickets, onSelectTicket }: NowServingBoardProp
                 <span className="mm-now-serving-walk">{walkLine(ticket)}</span>
               </div>
               <span className="mm-now-serving-name">{ticket.name}</span>
+              {dietaryBadgeFor(ticket) === "conflict" && (
+                <span
+                  aria-hidden="true"
+                  style={{
+                    fontFamily: "var(--font-mono)",
+                    fontSize: 8,
+                    fontWeight: 600,
+                    color: "var(--mm-red)",
+                  }}
+                >
+                  ⚠ allergen
+                </span>
+              )}
               <div className="mm-now-serving-stub-bottom">
                 <span
                   className="mm-now-serving-cost"

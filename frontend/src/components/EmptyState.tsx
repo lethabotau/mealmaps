@@ -43,7 +43,7 @@ export function EmptyState({ onClearFilters, onOpenAdd }: EmptyStateProps) {
         style={{
           fontFamily: "var(--font-sans)",
           fontSize: 15,
-          color: "#8a7d6c",
+          color: "#665a4a",
           maxWidth: 340,
           margin: "0 auto 22px",
           lineHeight: 1.5,

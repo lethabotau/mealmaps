@@ -1,5 +1,5 @@
 import type { TicketView } from "@mealmap/shared";
-import { SYSTEM_INGEST_USER } from "@mealmap/shared";
+import { ALLERGEN_LABELS, dietaryBadgeFor, SYSTEM_INGEST_USER } from "@mealmap/shared";
 
 interface TicketCardProps {
   ticket: TicketView;
@@ -9,8 +9,10 @@ interface TicketCardProps {
 export function TicketCard({ ticket, onClick }: TicketCardProps) {
   const isAutoSource = ticket.createdBy.userId === SYSTEM_INGEST_USER.userId;
   const isUnverified = ticket.trust === "unverified";
+  const dietaryBadge = dietaryBadgeFor(ticket);
   return (
-    <div
+    <button
+      type="button"
       className="mm-ticket-card"
       onClick={onClick}
       onMouseEnter={(e) => {
@@ -34,7 +36,7 @@ export function TicketCard({ ticket, onClick }: TicketCardProps) {
             fontFamily: "var(--font-mono)",
             fontSize: 11,
             letterSpacing: "1px",
-            color: "#7a6f61",
+            color: "#5f5344",
           }}
         >
           <span>NO. {ticket.no}</span>
@@ -57,7 +59,7 @@ export function TicketCard({ ticket, onClick }: TicketCardProps) {
           style={{
             fontFamily: "var(--font-mono)",
             fontSize: 12,
-            color: "#8a7d6c",
+            color: "#665a4a",
             overflowWrap: "anywhere",
           }}
         >
@@ -72,11 +74,11 @@ export function TicketCard({ ticket, onClick }: TicketCardProps) {
           }}
         />
         <div className="mm-ticket-card-fields">
-          <span style={{ color: "#9a8d7a" }}>COST</span>
+          <span style={{ color: "#6b5f4f" }}>COST</span>
           <span style={{ color: ticket.costColor, fontWeight: 500 }}>
             {ticket.costLabel}
           </span>
-          <span style={{ color: "#9a8d7a" }}>WHERE</span>
+          <span style={{ color: "#6b5f4f" }}>WHERE</span>
           <span
             style={{
               color: ticket.isPinnable ? "#E5431E" : "#1B1712",
@@ -85,15 +87,39 @@ export function TicketCard({ ticket, onClick }: TicketCardProps) {
           >
             {ticket.whereDisplay}
           </span>
-          <span style={{ color: "#9a8d7a" }}>{ticket.timeLabel}</span>
+          <span style={{ color: "#6b5f4f" }}>{ticket.timeLabel}</span>
           <span style={{ color: ticket.timeColor, fontWeight: 500 }}>
             {ticket.timeText}
           </span>
-          <span style={{ color: "#9a8d7a" }}>ACCESS</span>
+          <span style={{ color: "#6b5f4f" }}>ACCESS</span>
           <span style={{ color: "#1B1712" }}>{ticket.access}</span>
-          <span style={{ color: "#9a8d7a" }}>SEEN</span>
+          <span style={{ color: "#6b5f4f" }}>SEEN</span>
           <span style={{ color: "#1B1712" }}>{ticket.confirmed}</span>
         </div>
+        {dietaryBadge === "conflict" && ticket.dietary && (
+          <div
+            style={{
+              fontFamily: "var(--font-mono)",
+              fontSize: 11,
+              fontWeight: 600,
+              color: "var(--mm-red)",
+            }}
+          >
+            ⚠ Contains{" "}
+            {ticket.dietary.allergens.map((a) => ALLERGEN_LABELS[a]).join(", ")}
+          </div>
+        )}
+        {dietaryBadge === "unconfirmed" && (
+          <div
+            style={{
+              fontFamily: "var(--font-mono)",
+              fontSize: 11,
+              color: "var(--mm-amber)",
+            }}
+          >
+            Dietary info unconfirmed
+          </div>
+        )}
       </div>
 
       <div className="mm-ticket-card-stub">
@@ -116,7 +142,7 @@ export function TicketCard({ ticket, onClick }: TicketCardProps) {
               fontFamily: "var(--font-mono)",
               fontSize: 9,
               letterSpacing: "1px",
-              color: "#8a7d6c",
+              color: "#665a4a",
               marginTop: 2,
             }}
           >
@@ -169,13 +195,13 @@ export function TicketCard({ ticket, onClick }: TicketCardProps) {
             fontFamily: "var(--font-mono)",
             fontSize: 9,
             letterSpacing: "1px",
-            color: "#8a7d6c",
+            color: "#665a4a",
             flexShrink: 0,
           }}
         >
           DETAILS →
         </div>
       </div>
-    </div>
+    </button>
   );
 }

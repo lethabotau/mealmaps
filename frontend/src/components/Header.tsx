@@ -8,7 +8,8 @@ interface HeaderProps {
 export function Header({ onGoDash }: HeaderProps) {
   return (
     <header className="mm-header">
-      <div
+      <button
+        type="button"
         onClick={onGoDash}
         style={{
           display: "flex",
@@ -16,6 +17,11 @@ export function Header({ onGoDash }: HeaderProps) {
           gap: 12,
           cursor: "pointer",
           minWidth: 0,
+          background: "none",
+          border: "none",
+          padding: 0,
+          font: "inherit",
+          textAlign: "left",
         }}
       >
         <div
@@ -33,14 +39,14 @@ export function Header({ onGoDash }: HeaderProps) {
             transform: "rotate(-3deg)",
           }}
         >
-          <span className="mm-logo-mark">M</span>
+          <span className="mm-logo-mark" aria-hidden="true">M</span>
         </div>
         <div style={{ minWidth: 0 }}>
           <span className="mm-logo-word">
             Meal<span style={{ color: "#E5431E" }}>Map</span>
           </span>
         </div>
-      </div>
+      </button>
 
       <div style={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
         <SignedOut>

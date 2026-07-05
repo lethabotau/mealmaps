@@ -33,8 +33,9 @@ export function FilterBar({ groups, embedded = false }: FilterBarProps) {
                   key={option.label}
                   type="button"
                   onClick={option.onClick}
+                  aria-pressed={option.active}
                   className={`mm-order-slip-chip mm-order-slip-toggle${
-                    option.bg === "#1B1712" ? " is-active" : ""
+                    option.active ? " is-active" : ""
                   }`}
                 >
                   {option.label}
@@ -47,6 +48,7 @@ export function FilterBar({ groups, embedded = false }: FilterBarProps) {
                     key={option.label}
                     type="button"
                     onClick={option.onClick}
+                    aria-pressed={option.active}
                     className="mm-order-slip-segment-btn"
                     style={{
                       background: option.bg,
