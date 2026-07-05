@@ -1,0 +1,171 @@
+{
+  "version": 1,
+  "tickets": [
+    {
+      "id": "auto-68397",
+      "no": "9163",
+      "name": "FILOSOC BOODLE FIGHT",
+      "source": "Filipino Students' Society",
+      "cost": 22,
+      "sourcePrice": "$22.06 - $27.29",
+      "area": "upper",
+      "time": "today",
+      "where": "location unconfirmed",
+      "coords": null,
+      "onCampus": true,
+      "ends": "starts Fri 12:00 pm",
+      "access": "check event page",
+      "confirmed": "not yet confirmed",
+      "worth": "high",
+      "status": "available",
+      "blurb": "Filipino Students' Society Boodle Fight on Friday 10 July at noon. $22.06–$27.29 includes communal meal.",
+      "createdBy": {
+        "userId": "system-ingest",
+        "displayName": "MealMap Auto"
+      },
+      "sourceUrl": "https://campus.hellorubric.com/?eid=68397",
+      "trust": "unverified",
+      "foodLikelihood": "high",
+      "classifyReason": "Boodle fight is a communal meal event; price includes provided food."
+    },
+    {
+      "id": "auto-67651",
+      "no": "2952",
+      "name": "TOUR DE TAC #2 — BETA COFFEE 💚",
+      "source": "UNSW Tea & Coffee Society",
+      "cost": 0,
+      "sourcePrice": "Free",
+      "area": "upper",
+      "time": "today",
+      "where": "location unconfirmed",
+      "coords": null,
+      "onCampus": true,
+      "ends": "starts Mon 10:00 am",
+      "access": "check event page",
+      "confirmed": "not yet confirmed",
+      "worth": "high",
+      "status": "available",
+      "blurb": "UNSW Tea & Coffee Society's 'Tour de Tac #2 — Beta Coffee' on Monday 6 July at 10am. Free.",
+      "createdBy": {
+        "userId": "system-ingest",
+        "displayName": "MealMap Auto"
+      },
+      "sourceUrl": "https://campus.hellorubric.com/?eid=67651",
+      "trust": "unverified",
+      "foodLikelihood": "high",
+      "classifyReason": "Tea & Coffee Society event; provision is the event itself."
+    },
+    {
+      "id": "auto-66503",
+      "no": "2693",
+      "name": "ISCKON W6",
+      "source": "UNSW Hindu Society",
+      "cost": 0,
+      "sourcePrice": "Free",
+      "area": "upper",
+      "time": "today",
+      "where": "location unconfirmed",
+      "coords": null,
+      "onCampus": true,
+      "ends": "starts Thu 6:00 pm",
+      "access": "check event page",
+      "confirmed": "not yet confirmed",
+      "worth": "maybe",
+      "status": "available",
+      "blurb": "UNSW Hindu Society ISCKON W6 gathering, Thursday 6pm. Free.",
+      "createdBy": {
+        "userId": "system-ingest",
+        "displayName": "MealMap Auto"
+      },
+      "sourceUrl": "https://campus.hellorubric.com/?eid=66503",
+      "trust": "unverified",
+      "foodLikelihood": "medium",
+      "classifyReason": "ISKCON/Hare Krishna events are food-centric by tradition; society context counts."
+    },
+    {
+      "id": "auto-66451",
+      "no": "6884",
+      "name": "Lunch; Sports and Hangs T2 W6",
+      "source": "Christian Union",
+      "cost": 0,
+      "sourcePrice": "Free",
+      "area": "upper",
+      "time": "today",
+      "where": "location unconfirmed",
+      "coords": null,
+      "onCampus": true,
+      "ends": "starts Tue 11:00 am",
+      "access": "check event page",
+      "confirmed": "not yet confirmed",
+      "worth": "maybe",
+      "status": "available",
+      "blurb": "Christian Union lunch with sports and hangs, Tuesday 11am. Free.",
+      "createdBy": {
+        "userId": "system-ingest",
+        "displayName": "MealMap Auto"
+      },
+      "sourceUrl": "https://campus.hellorubric.com/?eid=66451",
+      "trust": "unverified",
+      "foodLikelihood": "medium",
+      "classifyReason": "Event name explicitly includes 'Lunch'; provision implied."
+    },
+    {
+      "id": "auto-65051",
+      "no": "9285",
+      "name": "T2 Coffee Night",
+      "source": "UNSW Hall",
+      "cost": 0,
+      "sourcePrice": "Free",
+      "area": "upper",
+      "time": "today",
+      "where": "location unconfirmed",
+      "coords": null,
+      "onCampus": true,
+      "ends": "starts Wed 7:00 pm",
+      "access": "check event page",
+      "confirmed": "not yet confirmed",
+      "worth": "maybe",
+      "status": "available",
+      "blurb": "UNSW Hall — T2 Coffee Night. Wed 7:00 pm, free. Room not pinned yet; check the event page or confirm it here.",
+      "createdBy": {
+        "userId": "system-ingest",
+        "displayName": "MealMap Auto"
+      },
+      "sourceUrl": "https://campus.hellorubric.com/?eid=65051",
+      "trust": "unverified",
+      "foodLikelihood": "medium",
+      "classifyReason": "keyword match: \"meal context (ambiguous)\""
+    }
+  ],
+  "overrides": {},
+  "confirm": {
+    "auto-68397": {
+      "count": 0,
+      "last": "not yet confirmed"
+    },
+    "auto-67651": {
+      "count": 0,
+      "last": "not yet confirmed"
+    },
+    "auto-66503": {
+      "count": 0,
+      "last": "not yet confirmed"
+    },
+    "auto-66451": {
+      "count": 0,
+      "last": "not yet confirmed"
+    },
+    "auto-65051": {
+      "count": 0,
+      "last": "not yet confirmed"
+    }
+  },
+  "reports": [],
+  "ingestedEventIds": [
+    "68397",
+    "67651",
+    "66503",
+    "66451",
+    "65051"
+  ]
+}
