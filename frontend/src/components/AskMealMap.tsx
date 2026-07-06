@@ -78,7 +78,7 @@ export function AskMealMap({
     <div className="mm-ask-panel mm-fade-up">
       <div className="mm-ask-head">
         <span className="mm-order-slip-label">// ASK MEALMAP</span>
-        <p className="mm-ask-hint">
+        <p className="mm-ask-hint" role="status" aria-live="polite">
           {status === "error" && error ? error : HINTS[status]}
         </p>
       </div>
@@ -127,11 +127,13 @@ export function AskMealMap({
       )}
 
       {transcript && (
-        <p className="mm-ask-transcript">&ldquo;{transcript}&rdquo;</p>
+        <p className="mm-ask-transcript" aria-live="polite">
+          &ldquo;{transcript}&rdquo;
+        </p>
       )}
 
       {answer && (
-        <div className="mm-ask-answer">
+        <div className="mm-ask-answer" role="status" aria-live="polite">
           <p className="mm-ask-answer-text">{answer}</p>
           {cited.length > 0 && (
             <div className="mm-ask-citations">

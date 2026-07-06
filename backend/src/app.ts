@@ -13,7 +13,8 @@ export function createApp() {
     app.use(cors());
   }
 
-  app.use(express.json());
+  // Raised above the 100kb default to fit base64-encoded screenshot uploads.
+  app.use(express.json({ limit: "8mb" }));
 
   app.get("/health", (_req, res) => {
     res.json({ ok: true, service: "mealmap-backend" });

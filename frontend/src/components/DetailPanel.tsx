@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { ReportKind, TicketView } from "@mealmap/shared";
-import { SYSTEM_INGEST_USER } from "@mealmap/shared";
+import { ALLERGEN_LABELS, dietaryBadgeFor, SYSTEM_INGEST_USER } from "@mealmap/shared";
+import { useDialog } from "../hooks/useDialog";
 
 interface DetailPanelProps {
   ticket: TicketView;
@@ -21,26 +22,26 @@ export function DetailPanel({ ticket, toast, onClose, onReport }: DetailPanelPro
   const isAutoSource = ticket.createdBy.userId === SYSTEM_INGEST_USER.userId;
   const isUnverified = ticket.trust === "unverified" || ticket.isPossibleFood;
   const needsLocation = ticket.isPinnable;
+  const dietaryBadge = dietaryBadgeFor(ticket);
   const [pinText, setPinText] = useState("");
   const pinRef = useRef<HTMLInputElement>(null);
+
+  const { containerRef } = useDialog<HTMLElement>({ open: true, onClose });
 
   useEffect(() => {
     if (needsLocation) pinRef.current?.focus();
   }, [ticket.id, needsLocation]);
 
-  // Close on Escape (unless a layer above, e.g. the sign-in overlay, consumed it).
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !e.defaultPrevented) onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
-
   return (
     <>
       <div onClick={onClose} className="mm-detail-scrim" />
-      <aside className="mm-detail-panel">
+      <aside
+        className="mm-detail-panel"
+        ref={containerRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="mm-detail-title"
+      >
         <div
           style={{
             background: "#1B1712",
@@ -96,6 +97,7 @@ export function DetailPanel({ ticket, toast, onClose, onReport }: DetailPanelPro
                 {ticket.statusLabel}
               </span>
               <h2
+                id="mm-detail-title"
                 style={{
                   fontFamily: "var(--font-display)",
                   fontWeight: 800,
@@ -111,7 +113,7 @@ export function DetailPanel({ ticket, toast, onClose, onReport }: DetailPanelPro
                 style={{
                   fontFamily: "var(--font-mono)",
                   fontSize: 12.5,
-                  color: "#8a7d6c",
+                  color: "#665a4a",
                   marginTop: 7,
                 }}
               >
@@ -212,11 +214,11 @@ export function DetailPanel({ ticket, toast, onClose, onReport }: DetailPanelPro
               padding: "16px 0",
             }}
           >
-            <span style={{ color: "#9a8d7a" }}>COST</span>
+            <span style={{ color: "#6b5f4f" }}>COST</span>
             <span style={{ fontWeight: 500, color: ticket.costColor }}>
               {ticket.costLabel}
             </span>
-            <span style={{ color: "#9a8d7a" }}>WHERE</span>
+            <span style={{ color: "#6b5f4f" }}>WHERE</span>
             <span
               style={{
                 color: ticket.isPinnable ? "#E5431E" : "#1B1712",
@@ -227,19 +229,47 @@ export function DetailPanel({ ticket, toast, onClose, onReport }: DetailPanelPro
             </span>
             {ticket.showWalk && (
               <>
-                <span style={{ color: "#9a8d7a" }}>WALK</span>
+                <span style={{ color: "#6b5f4f" }}>WALK</span>
                 <span style={{ color: "#1B1712" }}>{ticket.walkDetailText}</span>
               </>
             )}
-            <span style={{ color: "#9a8d7a" }}>{ticket.timeLabel}</span>
+            <span style={{ color: "#6b5f4f" }}>{ticket.timeLabel}</span>
             <span style={{ fontWeight: 500, color: ticket.timeColor }}>
               {ticket.timeText}
             </span>
-            <span style={{ color: "#9a8d7a" }}>ACCESS</span>
+            <span style={{ color: "#6b5f4f" }}>ACCESS</span>
             <span style={{ color: "#1B1712" }}>{ticket.access}</span>
-            <span style={{ color: "#9a8d7a" }}>SEEN</span>
+            <span style={{ color: "#6b5f4f" }}>SEEN</span>
             <span style={{ color: "#1B1712" }}>{ticket.confirmed}</span>
           </div>
+
+          {dietaryBadge === "conflict" && ticket.dietary && (
+            <div
+              role="status"
+              style={{
+                fontFamily: "var(--font-mono)",
+                fontSize: 12.5,
+                fontWeight: 600,
+                color: "var(--mm-red)",
+                marginBottom: 14,
+              }}
+            >
+              ⚠ Contains{" "}
+              {ticket.dietary.allergens.map((a) => ALLERGEN_LABELS[a]).join(", ")}
+            </div>
+          )}
+          {dietaryBadge === "unconfirmed" && (
+            <div
+              style={{
+                fontFamily: "var(--font-mono)",
+                fontSize: 12.5,
+                color: "var(--mm-amber)",
+                marginBottom: 14,
+              }}
+            >
+              Dietary info unconfirmed
+            </div>
+          )}
 
           <p
             style={{
@@ -279,7 +309,7 @@ export function DetailPanel({ ticket, toast, onClose, onReport }: DetailPanelPro
               fontFamily: "var(--font-mono)",
               fontSize: 11,
               letterSpacing: "2px",
-              color: "#8a7d6c",
+              color: "#665a4a",
               marginBottom: 12,
             }}
           >
@@ -336,7 +366,7 @@ export function DetailPanel({ ticket, toast, onClose, onReport }: DetailPanelPro
                   display: "block",
                   fontFamily: "var(--font-mono)",
                   fontSize: 11.5,
-                  color: "#8a7d6c",
+                  color: "#665a4a",
                   marginBottom: 6,
                 }}
               >
@@ -402,11 +432,15 @@ export function DetailPanel({ ticket, toast, onClose, onReport }: DetailPanelPro
             >
               Confirmed by {ticket.confirmCount} students · last checked{" "}
               {ticket.lastChecked}
+              {ticket.freshnessLabel && ` · ${ticket.freshnessLabel}`}
             </div>
           </div>
 
           {toast && (
             <div
+              role="status"
+              aria-live="polite"
+              className="mm-motion-fadeUp"
               style={{
                 marginTop: 14,
                 fontFamily: "var(--font-sans)",

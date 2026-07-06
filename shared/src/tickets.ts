@@ -1,7 +1,10 @@
 import type {
+  Allergen,
   AssistantTicketContext,
   CampusArea,
   CreateTicketInput,
+  DietaryProfile,
+  DietTag,
   ExtractedPost,
   ExtractField,
   ExtractResult,
@@ -66,7 +69,61 @@ export const STATUS_LABELS: Record<TicketStatus, string> = {
 export const DEFAULT_FILTERS: Filters = {
   freeOnly: false,
   time: "today",
+  safeForMe: false,
 };
+
+export const DIET_TAG_LABELS: Record<DietTag, string> = {
+  vegan: "Vegan",
+  vegetarian: "Vegetarian",
+  halal: "Halal",
+  kosher: "Kosher",
+  "gluten-free": "Gluten-free",
+  "dairy-free": "Dairy-free",
+};
+
+export const ALLERGEN_LABELS: Record<Allergen, string> = {
+  nuts: "Nuts",
+  peanuts: "Peanuts",
+  dairy: "Dairy",
+  gluten: "Gluten",
+  egg: "Egg",
+  soy: "Soy",
+  shellfish: "Shellfish",
+  sesame: "Sesame",
+};
+
+export const DEFAULT_DIETARY_PROFILE: DietaryProfile = {
+  avoidAllergens: [],
+  wantTags: [],
+};
+
+/** True when a ticket is known (via confirmed dietary info) to conflict with the profile. */
+export function dietaryConflicts(ticket: Ticket, profile: DietaryProfile): boolean {
+  if (!ticket.dietary) return false;
+  const { allergens, tags } = ticket.dietary;
+  if (profile.avoidAllergens.some((allergen) => allergens.includes(allergen))) {
+    return true;
+  }
+  if (
+    profile.wantTags.length > 0 &&
+    !profile.wantTags.every((tag) => tags.includes(tag))
+  ) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Badge for a ticket's dietary info — shown to every viewer, not just those
+ * with a profile set. "conflict" means the ticket has known allergens (an
+ * always-visible "contains X" warning). Unknown dietary info is always
+ * flagged as "unconfirmed", never hidden or treated as safe.
+ */
+export function dietaryBadgeFor(ticket: Ticket): "conflict" | "unconfirmed" | "clear" {
+  if (!ticket.dietary) return "unconfirmed";
+  if (ticket.dietary.allergens.length > 0) return "conflict";
+  return "clear";
+}
 
 /** Map stored ticket area (incl. legacy quad/library) to upper/lower show zones. */
 export function normalizeArea(
@@ -185,6 +242,53 @@ export function worthRank(w: WorthLevel): number {
   return 2;
 }
 
+const FRESHNESS_FULL_MS = 15 * 60 * 1000;
+const FRESHNESS_FLOOR_MS = 90 * 60 * 1000;
+const FRESHNESS_FLOOR = 0.3;
+
+/**
+ * 1 (just confirmed) decaying linearly to a 0.3 floor by 90 minutes old.
+ * Unknown age (`confirmedAt` absent) is treated as fully fresh — decay only
+ * applies once we actually know how old a confirmation is.
+ */
+export function freshnessScore(ticket: Ticket, nowMs: number = Date.now()): number {
+  if (!ticket.confirmedAt) return 1;
+  const ageMs = nowMs - Date.parse(ticket.confirmedAt);
+  if (!Number.isFinite(ageMs) || ageMs <= FRESHNESS_FULL_MS) return 1;
+  if (ageMs >= FRESHNESS_FLOOR_MS) return FRESHNESS_FLOOR;
+  const span = FRESHNESS_FLOOR_MS - FRESHNESS_FULL_MS;
+  const progress = (ageMs - FRESHNESS_FULL_MS) / span;
+  return 1 - progress * (1 - FRESHNESS_FLOOR);
+}
+
+/**
+ * `worth` after time-decay: a stale, imminent ("now"/"hour") ticket that was
+ * rated "high" slides to "maybe" as its confirmation ages — it never
+ * upgrades, and "low"/"today" tickets are left alone (nothing to decay into,
+ * or not imminent enough for staleness to matter).
+ */
+export function decayedWorth(ticket: Ticket, nowMs: number = Date.now()): WorthLevel {
+  if (ticket.worth !== "high") return ticket.worth;
+  if (ticket.time === "today") return ticket.worth;
+  return freshnessScore(ticket, nowMs) < 0.5 ? "maybe" : ticket.worth;
+}
+
+const MINUTE_MS = 60 * 1000;
+
+/** "last confirmed X min ago" from `confirmedAt`, or undefined if unknown. */
+export function freshnessLabelFor(
+  ticket: Ticket,
+  nowMs: number = Date.now(),
+): string | undefined {
+  if (!ticket.confirmedAt) return undefined;
+  const ageMs = nowMs - Date.parse(ticket.confirmedAt);
+  if (!Number.isFinite(ageMs) || ageMs < 0) return undefined;
+  const minutes = Math.round(ageMs / MINUTE_MS);
+  if (minutes < 1) return "last confirmed just now";
+  if (minutes === 1) return "last confirmed 1 min ago";
+  return `last confirmed ${minutes} min ago`;
+}
+
 /**
  * Sort tier: confirmed humans & promoted tickets (0) → food-likely autos (1)
  * → possible-tier autos (2).
@@ -241,7 +345,7 @@ export function ticketsForAssistant(
       where: view.whereDisplay,
       when: `${view.timeLabel} ${view.timeText}`,
       access: view.access,
-      worth: view.worth,
+      worth: view.effectiveWorth,
       status: view.effectiveStatus,
       trust: view.trust ?? "confirmed",
       foodUnconfirmed: view.isPossibleFood || undefined,
@@ -299,10 +403,18 @@ export function filterTickets(
   filters: Filters,
   overrides: TicketOverrides = {},
   vantage: CampusArea = "upper",
+  dietaryProfile?: DietaryProfile,
 ): Ticket[] {
   const list = tickets.filter((ticket) => {
     if (filters.freeOnly && !isFreeCost(ticket.cost)) return false;
     if (!ticketMatchesTimeFilter(ticket, filters.time)) return false;
+    if (
+      filters.safeForMe &&
+      dietaryProfile &&
+      dietaryConflicts(ticket, dietaryProfile)
+    ) {
+      return false;
+    }
     return true;
   });
 
@@ -320,7 +432,7 @@ export function filterTickets(
     const bGone = effectiveStatus(b, overrides) === "gone" ? 1 : 0;
     if (aGone !== bGone) return aGone - bGone;
 
-    const worthDiff = worthRank(a.worth) - worthRank(b.worth);
+    const worthDiff = worthRank(decayedWorth(a)) - worthRank(decayedWorth(b));
     if (worthDiff !== 0) return worthDiff;
 
     const timeDiff = timeRank(a.time) - timeRank(b.time);
@@ -329,7 +441,11 @@ export function filterTickets(
     const campusDiff = onCampusRank(a) - onCampusRank(b);
     if (campusDiff !== 0) return campusDiff;
 
-    return walkKey(a) - walkKey(b);
+    const walkDiff = walkKey(a) - walkKey(b);
+    if (walkDiff !== 0) return walkDiff;
+
+    // Last-resort tiebreak: fresher confirmations sort first.
+    return freshnessScore(b) - freshnessScore(a);
   });
 }
 
@@ -350,8 +466,9 @@ export function toTicketView(
     ? computeWalk(areaVantage(vantage), ticket.coords)
     : null;
   const cost = costDisplayFor(ticket.cost, ticket.sourcePrice);
-  const worthLabel = WORTH_LABELS[ticket.worth];
-  const worthColor = WORTH_COLORS[ticket.worth];
+  const worth = decayedWorth(ticket);
+  const worthLabel = WORTH_LABELS[worth];
+  const worthColor = WORTH_COLORS[worth];
   const stamp = ticketStampForView(ticket, worthLabel, worthColor);
   const isPossibleFood = isPossibleFoodTicket(ticket);
 
@@ -373,10 +490,12 @@ export function toTicketView(
     costColor: cost.color,
     worthLabel,
     worthColor,
+    effectiveWorth: worth,
     statusLabel: STATUS_LABELS[status],
     statusColor: STATUS_COLORS[status],
     confirmCount: meta?.count ?? 3,
     lastChecked: meta?.last ?? "4 min ago",
+    freshnessLabel: freshnessLabelFor(ticket),
     isPossibleFood,
     stampLabel: stamp.label,
     stampColor: stamp.color,
@@ -394,7 +513,13 @@ export function buildQuickAddTicket(input: {
   where: string;
   what: string;
   last: string;
+  dietTags?: DietTag[];
+  allergens?: Allergen[];
 }): CreateTicketInput {
+  const dietTags = input.dietTags ?? [];
+  const allergens = input.allergens ?? [];
+  const hasDietaryInput = dietTags.length > 0 || allergens.length > 0;
+
   return {
     name: (input.what || "Food").replace(/\b\w/g, (c) => c.toUpperCase()),
     source: "Student report",
@@ -408,6 +533,9 @@ export function buildQuickAddTicket(input: {
     status: "available",
     blurb:
       "Reported by a fellow student just now. Details are fresh but unverified — report back when you get there!",
+    dietary: hasDietaryInput
+      ? { tags: dietTags, allergens, confidence: 100 }
+      : undefined,
   };
 }
 
@@ -437,6 +565,7 @@ export function buildTicketFromExtracted(extracted: ExtractedPost): CreateTicket
     worth: extracted.confidence >= 80 ? "high" : "maybe",
     status: "available",
     blurb: `Auto-read from a pasted event post. Confidence ${extracted.confidence}%. Double-check details when you arrive.`,
+    dietary: extracted.dietary,
   };
 }
 
@@ -531,6 +660,18 @@ export function extractResultToPost(result: ExtractResult): ExtractedPost {
     hasMissing: missingLabels.length > 0,
     timeWindow: timeWindowFromNormalized(result.time_normalized),
     costCents: result.cost_cents,
+    dietary: result.dietary
+      ? {
+          tags: result.dietary.tags,
+          allergens: result.dietary.allergens,
+          confidence: Math.round(
+            ((CONFIDENCE_WEIGHT[result.dietary.confidence.tags] +
+              CONFIDENCE_WEIGHT[result.dietary.confidence.allergens]) /
+              2) *
+              100,
+          ),
+        }
+      : undefined,
   };
 }
 

@@ -1,4 +1,10 @@
-import type { CreateTicketInput, ReportKind } from "@mealmap/shared";
+import type {
+  Allergen,
+  CreateTicketInput,
+  DietTag,
+  ReportKind,
+  TicketDietary,
+} from "@mealmap/shared";
 import { normalizeTicketCost } from "@mealmap/shared";
 import { Router } from "express";
 import {
@@ -17,6 +23,41 @@ import {
 } from "../store/ticketStore.js";
 
 export const ticketsRouter = Router();
+
+const DIET_TAG_VALUES: DietTag[] = [
+  "vegan",
+  "vegetarian",
+  "halal",
+  "kosher",
+  "gluten-free",
+  "dairy-free",
+];
+
+const ALLERGEN_VALUES: Allergen[] = [
+  "nuts",
+  "peanuts",
+  "dairy",
+  "gluten",
+  "egg",
+  "soy",
+  "shellfish",
+  "sesame",
+];
+
+function sanitizeDietary(value: unknown): TicketDietary | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const v = value as Record<string, unknown>;
+  const tags = Array.isArray(v.tags)
+    ? v.tags.filter((t): t is DietTag => (DIET_TAG_VALUES as string[]).includes(t))
+    : [];
+  const allergens = Array.isArray(v.allergens)
+    ? v.allergens.filter((a): a is Allergen =>
+        (ALLERGEN_VALUES as string[]).includes(a),
+      )
+    : [];
+  const confidence = typeof v.confidence === "number" ? v.confidence : 0;
+  return { tags, allergens, confidence };
+}
 
 ticketsRouter.get("/", (_req, res) => {
   res.json({
@@ -69,6 +110,7 @@ ticketsRouter.post("/", clerkAuthMiddleware, requireWriteAuth, async (req, res) 
       worth: body.worth,
       status: body.status,
       blurb: body.blurb,
+      dietary: sanitizeDietary(body.dietary),
     },
     createdBy,
   );

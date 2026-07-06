@@ -1,9 +1,17 @@
 import type { Filters } from "@mealmap/shared";
 
+/** Shared active/inactive chip colors, used by AddFoodModal and dietary chips. */
+export function chipColors(active: boolean): { bg: string; color: string } {
+  return active
+    ? { bg: "#E5431E", color: "#FBF7EE" }
+    : { bg: "#FFFDF7", color: "#1B1712" };
+}
+
 export interface FilterOption {
   label: string;
   bg: string;
   color: string;
+  active: boolean;
   onClick: () => void;
 }
 
@@ -25,13 +33,20 @@ export function buildFilterGroups(
   const groups: Array<{
     name: string;
     kind?: "segmented" | "toggle";
-    key?: keyof Filters;
+    key: keyof Filters;
     opts: Array<[Filters[keyof Filters], string]>;
   }> = [
     {
       name: "",
       kind: "toggle",
-      opts: [[filters.freeOnly as Filters[keyof Filters], "Free only"]],
+      key: "freeOnly",
+      opts: [[true as Filters[keyof Filters], "Free only"]],
+    },
+    {
+      name: "",
+      kind: "toggle",
+      key: "safeForMe",
+      opts: [[true as Filters[keyof Filters], "Safe for me"]],
     },
     {
       name: "WHEN",
@@ -49,21 +64,18 @@ export function buildFilterGroups(
     kind: group.kind ?? "segmented",
     options: group.opts.map(([value, label]) => {
       const active =
-        group.kind === "toggle"
-          ? filters.freeOnly
-          : group.key
-            ? filters[group.key] === value
-            : false;
+        group.kind === "toggle" ? Boolean(filters[group.key]) : filters[group.key] === value;
       const colors = chip(active);
       return {
         label,
         ...colors,
+        active,
         onClick: () => {
           if (group.kind === "toggle") {
-            setFilter("freeOnly", !filters.freeOnly);
+            setFilter(group.key, !filters[group.key]);
             return;
           }
-          if (group.key) setFilter(group.key, value);
+          setFilter(group.key, value);
         },
       };
     }),

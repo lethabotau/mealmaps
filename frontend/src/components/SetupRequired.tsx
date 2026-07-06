@@ -53,7 +53,7 @@ export function SetupRequired({ title, steps }: SetupRequiredProps) {
             style={{
               fontFamily: "var(--font-mono)",
               fontSize: 12,
-              color: "#8a7d6c",
+              color: "#665a4a",
               margin: 0,
             }}
           >

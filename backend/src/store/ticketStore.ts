@@ -163,6 +163,8 @@ export function createTicket(
     status: input.status ?? "available",
     blurb: input.blurb,
     createdBy,
+    dietary: input.dietary,
+    confirmedAt: new Date().toISOString(),
   };
 
   state.tickets.unshift(ticket);
@@ -197,6 +199,7 @@ export interface AutoTicketInput {
   classifyReason?: string;
   venueHint?: string | null;
   onCampus?: boolean;
+  dietary?: Ticket["dietary"];
   /** When true, inserts as possible-tier (foodStatus unconfirmed). */
   possibleTier?: boolean;
 }
@@ -278,6 +281,8 @@ export function insertAutoTicket(
     trust: "unverified",
     foodLikelihood: input.foodLikelihood,
     classifyReason: input.classifyReason,
+    dietary: input.dietary,
+    confirmedAt: new Date().toISOString(),
     ...(input.possibleTier ? { foodStatus: "unconfirmed" as const } : {}),
   };
 
@@ -340,6 +345,7 @@ export function applyReport(
   } else if (kind === "still") {
     const ticket = state.tickets.find((t) => t.id === id);
     if (ticket) {
+      ticket.confirmedAt = new Date().toISOString();
       if (ticket.trust === "unverified") {
         ticket.trust = "confirmed";
       }

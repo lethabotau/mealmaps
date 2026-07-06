@@ -13,7 +13,7 @@ import {
   type Screen,
 } from "@mealmap/shared";
 import { configureAuthTokenGetter } from "./api/auth";
-import { extractPost } from "./api/client";
+import { extractImage, extractPost } from "./api/client";
 import { AddFoodModal } from "./components/AddFoodModal";
 import { DashboardView } from "./components/DashboardView";
 import { DetailPanel } from "./components/DetailPanel";
@@ -25,6 +25,7 @@ import {
   AuthSignInOverlay,
   useAuthGate,
 } from "./hooks/useAuthGate";
+import { useDietaryProfile } from "./hooks/useDietaryProfile";
 import { useTickets } from "./hooks/useTickets";
 import { REPORT_TOAST, buildFilterGroups } from "./lib/uiHelpers";
 import { layoutDashboardTickets } from "./lib/dashboardTickets";
@@ -33,6 +34,7 @@ export default function App() {
   const { getToken } = useAuth();
   const { tickets, overrides, confirm, loading, error, addTicket, submitReport } =
     useTickets();
+  const { profile: dietaryProfile, toggleAllergen, toggleTag } = useDietaryProfile();
 
   const [screen, setScreen] = useState<Screen>("dashboard");
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
@@ -94,8 +96,8 @@ export default function App() {
   }, [getToken]);
 
   const filtered = useMemo(
-    () => filterTickets(tickets, filters, overrides, vantage),
-    [tickets, filters, overrides, vantage],
+    () => filterTickets(tickets, filters, overrides, vantage, dietaryProfile),
+    [tickets, filters, overrides, vantage, dietaryProfile],
   );
 
   const views = useMemo(
@@ -141,7 +143,7 @@ export default function App() {
     return (
       <div className="mm-page mm-container" style={{ paddingTop: 80 }}>
         <h2>Could not reach the MealMap backend</h2>
-        <p style={{ fontFamily: "var(--font-mono)", color: "#8a7d6c" }}>
+        <p style={{ fontFamily: "var(--font-mono)", color: "#665a4a" }}>
           {error}
         </p>
         <p>
@@ -154,10 +156,14 @@ export default function App() {
 
   return (
     <div className="mm-page">
+      <a href="#mm-main" className="mm-skip-link">
+        Skip to content
+      </a>
       <AuthSignInOverlay open={signInOpen} onDismiss={closeSignIn} />
       <div className="mm-container">
         <Header onGoDash={() => setScreen("dashboard")} />
 
+        <main id="mm-main">
         {screen === "dashboard" && (
           <DashboardView
             vantage={vantage}
@@ -169,6 +175,9 @@ export default function App() {
             resultCount={views.length}
             gate={gate}
             askResumeToken={askResumeToken}
+            dietaryProfile={dietaryProfile}
+            onToggleAllergen={toggleAllergen}
+            onToggleTag={toggleTag}
             onOpenAdd={openAddModal}
             onGoPaste={() => setScreen("paste")}
             onGoResults={() => setScreen("results")}
@@ -187,6 +196,9 @@ export default function App() {
             filterGroups={filterGroups}
             rankedTickets={rankedTickets}
             resultCount={views.length}
+            dietaryProfile={dietaryProfile}
+            onToggleAllergen={toggleAllergen}
+            onToggleTag={toggleTag}
             onGoDash={() => setScreen("dashboard")}
             onClearFilters={() => setFilters(DEFAULT_FILTERS)}
             onOpenAdd={openAddModal}
@@ -209,6 +221,13 @@ export default function App() {
               });
               return result;
             }}
+            onExtractImage={async (imageBase64, mimeType) => {
+              let result: ExtractResult | null = null;
+              await gate({ type: "paste-extract" }, async () => {
+                result = await extractImage(imageBase64, mimeType);
+              });
+              return result;
+            }}
             onPostTicket={async (extracted) => {
               let posted = false;
               await gate({ type: "paste-submit" }, async () => {
@@ -219,6 +238,7 @@ export default function App() {
             }}
           />
         )}
+        </main>
       </div>
 
       {detailTicket && (

@@ -1,7 +1,8 @@
-import type { CampusArea, TicketView } from "@mealmap/shared";
+import type { Allergen, CampusArea, DietaryProfile, DietTag, TicketView } from "@mealmap/shared";
 import type { FilterGroup } from "../lib/uiHelpers";
 import type { PendingAction } from "../hooks/useAuthGate";
 import { AskMealMap } from "./AskMealMap";
+import { DietaryProfilePanel } from "./DietaryProfilePanel";
 import { EmptyState } from "./EmptyState";
 import { NowServingBoard } from "./NowServingBoard";
 import { OrderSlipBar } from "./OrderSlipBar";
@@ -17,6 +18,9 @@ interface DashboardViewProps {
   resultCount: number;
   gate: (action: PendingAction, run: () => void | Promise<void>) => void;
   askResumeToken?: number;
+  dietaryProfile: DietaryProfile;
+  onToggleAllergen: (allergen: Allergen) => void;
+  onToggleTag: (tag: DietTag) => void;
   onOpenAdd: () => void;
   onGoPaste: () => void;
   onGoResults: () => void;
@@ -34,6 +38,9 @@ export function DashboardView({
   resultCount,
   gate,
   askResumeToken,
+  dietaryProfile,
+  onToggleAllergen,
+  onToggleTag,
   onOpenAdd,
   onGoPaste,
   onGoResults,
@@ -70,6 +77,12 @@ export function DashboardView({
         vantage={vantage}
         onVantageChange={onVantageChange}
         filterGroups={filterGroups}
+      />
+
+      <DietaryProfilePanel
+        profile={dietaryProfile}
+        onToggleAllergen={onToggleAllergen}
+        onToggleTag={onToggleTag}
       />
 
       <AskMealMap

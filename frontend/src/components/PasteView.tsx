@@ -17,9 +17,33 @@ const CONF_COLOR: Record<FieldConfidence, string> = {
   low: "#C0341D",
 };
 
+const SUPPORTED_IMAGE_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/gif",
+  "image/webp",
+]);
+
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result as string;
+      // Strip the "data:<mime>;base64," prefix — backend wants raw base64.
+      resolve(result.slice(result.indexOf(",") + 1));
+    };
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
+
 interface PasteViewProps {
   onGoDash: () => void;
   onExtract: (text: string) => Promise<ExtractResult | null>;
+  onExtractImage: (
+    imageBase64: string,
+    mimeType: string,
+  ) => Promise<ExtractResult | null>;
   onPostTicket: (extracted: ReturnType<typeof extractResultToPost>) => Promise<boolean>;
   resumeExtractToken?: number;
   resumeSubmitToken?: number;
@@ -28,16 +52,19 @@ interface PasteViewProps {
 export function PasteView({
   onGoDash,
   onExtract,
+  onExtractImage,
   onPostTicket,
   resumeExtractToken = 0,
   resumeSubmitToken = 0,
 }: PasteViewProps) {
   const [pasteText, setPasteText] = useState(SAMPLE_POST);
   const [result, setResult] = useState<ExtractResult | null>(null);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
   const [extracting, setExtracting] = useState(false);
   const [posting, setPosting] = useState(false);
   const [posted, setPosted] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [dragOver, setDragOver] = useState(false);
 
   const runExtract = useCallback(async () => {
     if (!pasteText.trim()) return;
@@ -49,6 +76,7 @@ export function PasteView({
       // re-run via resumeExtractToken after auth completes.
       if (extracted) {
         setResult(extracted);
+        setImagePreviewUrl(null);
         setPosted(false);
       }
     } catch (err) {
@@ -61,6 +89,35 @@ export function PasteView({
       setExtracting(false);
     }
   }, [pasteText, onExtract]);
+
+  const runExtractImage = useCallback(
+    async (file: File) => {
+      if (!SUPPORTED_IMAGE_TYPES.has(file.type)) {
+        setError("That image type isn't supported — try a JPEG, PNG, GIF, or WebP.");
+        return;
+      }
+      setExtracting(true);
+      setError(null);
+      try {
+        const base64 = await fileToBase64(file);
+        const extracted = await onExtractImage(base64, file.type);
+        if (extracted) {
+          setResult(extracted);
+          setImagePreviewUrl(URL.createObjectURL(file));
+          setPosted(false);
+        }
+      } catch (err) {
+        setError(
+          isAuthError(err)
+            ? "Session expired — sign in again, then drop the image once more."
+            : "Couldn’t read that screenshot. Try again.",
+        );
+      } finally {
+        setExtracting(false);
+      }
+    },
+    [onExtractImage],
+  );
 
   const postPaste = useCallback(async () => {
     if (!result || posted) return;
@@ -98,6 +155,12 @@ export function PasteView({
     void postPasteRef.current();
   }, [resumeSubmitToken]);
 
+  useEffect(() => {
+    return () => {
+      if (imagePreviewUrl) URL.revokeObjectURL(imagePreviewUrl);
+    };
+  }, [imagePreviewUrl]);
+
   return (
     <section className="mm-fade-up">
       <div style={{ margin: "26px 0 4px" }}>
@@ -110,13 +173,14 @@ export function PasteView({
         style={{
           fontFamily: "var(--font-mono)",
           fontSize: 12.5,
-          color: "#8a7d6c",
+          color: "#665a4a",
           margin: "0 0 24px",
           maxWidth: 620,
         }}
       >
-        Drop in a club email, flyer text, or group-chat message. We&apos;ll read
-        it and print a ticket.
+        Drop in a club email, flyer text, or group-chat message — or drop/paste
+        a screenshot of a flyer or Instagram story. We&apos;ll read it and
+        print a ticket.
       </p>
 
       <div className="mm-paste-layout">
@@ -126,7 +190,7 @@ export function PasteView({
               fontFamily: "var(--font-mono)",
               fontSize: 11,
               letterSpacing: "2px",
-              color: "#8a7d6c",
+              color: "#665a4a",
               marginBottom: 10,
             }}
           >
@@ -166,6 +230,43 @@ export function PasteView({
               {error}
             </div>
           )}
+
+          <div
+            onDragOver={(e) => {
+              e.preventDefault();
+              setDragOver(true);
+            }}
+            onDragLeave={() => setDragOver(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setDragOver(false);
+              const file = e.dataTransfer.files[0];
+              if (file) void runExtractImage(file);
+            }}
+            onPaste={(e) => {
+              const item = Array.from(e.clipboardData.items).find((i) =>
+                i.type.startsWith("image/"),
+              );
+              const file = item?.getAsFile();
+              if (file) void runExtractImage(file);
+            }}
+            tabIndex={0}
+            role="button"
+            aria-label="Drop or paste a screenshot of a flyer or event post to read it"
+            style={{
+              marginTop: 14,
+              border: `2.5px dashed ${dragOver ? "#E5431E" : "#b8ab92"}`,
+              borderRadius: 10,
+              padding: "16px 12px",
+              textAlign: "center",
+              fontFamily: "var(--font-mono)",
+              fontSize: 11.5,
+              color: dragOver ? "#E5431E" : "#665a4a",
+              cursor: "copy",
+            }}
+          >
+            📸 Drop a screenshot here, or paste with ⌘V / Ctrl+V
+          </div>
         </div>
 
         <div style={{ minHeight: 220 }}>
@@ -200,7 +301,7 @@ export function PasteView({
                   fontFamily: "var(--font-sans)",
                   fontWeight: 500,
                   fontSize: 16,
-                  color: "#8a7d6c",
+                  color: "#665a4a",
                 }}
               >
                 Reading the post…
@@ -239,6 +340,19 @@ export function PasteView({
                 </span>
               </div>
               <div style={{ padding: 18, display: "flex", flexDirection: "column", gap: 11 }}>
+                {imagePreviewUrl && (
+                  <img
+                    src={imagePreviewUrl}
+                    alt="Screenshot submitted for reading"
+                    style={{
+                      maxWidth: "100%",
+                      maxHeight: 160,
+                      borderRadius: 8,
+                      border: "2px solid #1B1712",
+                      objectFit: "contain",
+                    }}
+                  />
+                )}
                 {result.time_normalized?.type === "now" && (
                   <div style={{ display: "flex" }}>
                     <span
@@ -310,7 +424,7 @@ export function PasteView({
                         : "#1B1712";
                     return (
                       <Fragment key={field}>
-                        <span style={{ color: "#9a8d7a" }}>
+                        <span style={{ color: "#6b5f4f" }}>
                           {EXTRACT_FIELD_LABELS[field]}
                         </span>
                         <span
@@ -400,7 +514,7 @@ export function PasteView({
                       style={{
                         fontFamily: "var(--font-mono)",
                         fontSize: 12,
-                        color: "#8a7d6c",
+                        color: "#665a4a",
                       }}
                     >
                       Now live on the pass.

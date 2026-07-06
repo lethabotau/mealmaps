@@ -7,6 +7,7 @@ import {
 import { SignIn, useAuth } from "@clerk/clerk-react";
 import type { ReportKind } from "@mealmap/shared";
 import { clerkAppearance } from "../lib/clerkAppearance";
+import { useDialog } from "./useDialog";
 
 export type PendingAction =
   | { type: "add-food" }
@@ -65,20 +66,13 @@ interface AuthSignInOverlayProps {
 }
 
 export function AuthSignInOverlay({ open, onDismiss }: AuthSignInOverlayProps) {
-  // Escape dismisses. Capture phase + preventDefault so an underlying panel's
-  // own Escape handler (see DetailPanel/AddFoodModal) doesn't also close.
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.preventDefault();
-        e.stopPropagation();
-        onDismiss();
-      }
-    };
-    window.addEventListener("keydown", onKey, true);
-    return () => window.removeEventListener("keydown", onKey, true);
-  }, [open, onDismiss]);
+  // Capture phase so this overlay's Escape wins over any panel beneath it
+  // (see DetailPanel/AddFoodModal).
+  const { containerRef } = useDialog<HTMLDivElement>({
+    open,
+    onClose: onDismiss,
+    capture: true,
+  });
 
   if (!open) return null;
 
@@ -94,7 +88,14 @@ export function AuthSignInOverlay({ open, onDismiss }: AuthSignInOverlayProps) {
         }}
       />
       <div className="mm-auth-overlay" style={{ zIndex: 101, pointerEvents: "none" }}>
-        <div onClick={(e) => e.stopPropagation()} className="mm-auth-card">
+        <div
+          onClick={(e) => e.stopPropagation()}
+          className="mm-auth-card"
+          ref={containerRef}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Sign in"
+        >
           <SignIn routing="virtual" appearance={clerkAppearance} />
         </div>
       </div>
