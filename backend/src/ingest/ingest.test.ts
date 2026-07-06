@@ -1,10 +1,14 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   buildFallbackBlurb,
+  ingestClassified,
   parseEventPriceToCost,
   resolveAutoBlurb,
 } from "./ingest.js";
 import type { SocietyEvent } from "./fetchEvents.js";
+import type { ClassifiedEvent } from "./classifyEvents.js";
+import { sydneyLocalToUtcMs } from "@mealmap/shared";
+import { resetStore } from "../store/ticketStore.js";
 
 const sampleEvent: SocietyEvent = {
   event_id: "evt-1",
@@ -74,5 +78,63 @@ describe("parseEventPriceToCost (ingest)", () => {
 
   it("uses the range minimum for paid tiers", () => {
     expect(parseEventPriceToCost("$22.06 - $27.29")).toBe(22);
+  });
+});
+
+describe("auto ticket time windows", () => {
+  const now = sydneyLocalToUtcMs(2026, 7, 6, 10, 0);
+
+  beforeEach(() => {
+    resetStore({ seed: false });
+    vi.useFakeTimers();
+    vi.setSystemTime(now);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("stores startsAtIso and buckets same-day future events as today, not now", () => {
+    const startsAtIso = "2026-07-06T21:00:00+10:00";
+    const classified: ClassifiedEvent[] = [
+      {
+        event: {
+          ...sampleEvent,
+          starts_at_iso: startsAtIso,
+        },
+        food_likelihood: "high",
+        reason: "test",
+        blurb: "Tonight's event.",
+        venue_hint: null,
+        on_campus: true,
+      },
+    ];
+
+    const tickets = ingestClassified(classified);
+    expect(tickets).toHaveLength(1);
+    expect(tickets[0]?.startsAtIso).toBe(startsAtIso);
+    expect(tickets[0]?.time).toBe("today");
+  });
+
+  it("does not bucket a Wednesday event as now/hour on Monday", () => {
+    const startsAtIso = "2026-07-08T19:00:00+10:00";
+    const classified: ClassifiedEvent[] = [
+      {
+        event: {
+          ...sampleEvent,
+          event_name: "Wed dinner",
+          starts_at_iso: startsAtIso,
+        },
+        food_likelihood: "medium",
+        reason: "test",
+        blurb: "Wednesday event.",
+        venue_hint: null,
+        on_campus: true,
+      },
+    ];
+
+    const tickets = ingestClassified(classified);
+    expect(tickets[0]?.time).toBe("today");
+    expect(tickets[0]?.startsAtIso).toBe(startsAtIso);
   });
 });

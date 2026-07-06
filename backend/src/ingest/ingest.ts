@@ -1,5 +1,9 @@
 import type { Ticket, TimeWindow, WorthLevel } from "@mealmap/shared";
-import { parseEventPriceToCost, timeWindowFromNormalized } from "@mealmap/shared";
+import {
+  parseEventPriceToCost,
+  timeWindowFromNormalized,
+  timeWindowFromStartMs,
+} from "@mealmap/shared";
 import { insertAutoTicket } from "../store/ticketStore.js";
 import type { ClassifiedEvent, KeptLikelihood } from "./classifyEvents.js";
 import { classifyEvents } from "./classifyEvents.js";
@@ -22,7 +26,11 @@ function worthFromLikelihood(likelihood: KeptLikelihood): WorthLevel {
 export { parseEventPriceToCost };
 
 function timeWindowFromIso(iso: string): TimeWindow {
-  return timeWindowFromNormalized({ type: "specific", start: iso, confidence: "low" });
+  const startMs = Date.parse(iso);
+  if (Number.isNaN(startMs)) {
+    return timeWindowFromNormalized(null);
+  }
+  return timeWindowFromStartMs(startMs);
 }
 
 function formatStart(iso: string): string {
@@ -78,6 +86,7 @@ export function ingestClassified(classified: ClassifiedEvent[]): Ticket[] {
       cost: parseEventPriceToCost(event.price),
       sourcePrice: event.price.trim() || undefined,
       time: timeWindowFromIso(event.starts_at_iso),
+      startsAtIso: event.starts_at_iso,
       worth: worthFromLikelihood(food_likelihood),
       ends: formatStart(event.starts_at_iso),
       sourceUrl: event.source_url,

@@ -59,6 +59,11 @@ export interface Ticket {
   /** External link for auto-ingested tickets (society event page). */
   sourceUrl?: string;
   /**
+   * Event start instant (ISO 8601), set on auto-ingest for Sydney-aware WHEN
+   * filtering. Absent on human tickets — those fall back to inclusive rules.
+   */
+  startsAtIso?: string;
+  /**
    * Verification tier. Absent means `confirmed` (human tickets). Auto-ingested
    * tickets start `unverified` and flip to `confirmed` on a crowd "still" report.
    */

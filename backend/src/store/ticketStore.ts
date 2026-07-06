@@ -177,6 +177,8 @@ export interface AutoTicketInput {
   /** Raw Algolia price string for COST range display. */
   sourcePrice?: string;
   time: TimeWindow;
+  /** ISO start time from Algolia — drives Sydney-aware WHEN filtering. */
+  startsAtIso?: string;
   /** Intra-tier ranking hint derived from food likelihood (high vs maybe). */
   worth: WorthLevel;
   ends: string;
@@ -247,6 +249,7 @@ export function insertAutoTicket(
     sourcePrice: input.sourcePrice,
     area: location.area,
     time: input.time,
+    ...(input.startsAtIso ? { startsAtIso: input.startsAtIso } : {}),
     where: location.where,
     coords: location.coords,
     onCampus: location.onCampus,

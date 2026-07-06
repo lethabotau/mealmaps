@@ -21,6 +21,10 @@ import type {
 import { SEED_AUTHORS } from "./seedUsers.js";
 import { areaVantage, computeWalk, coordsFor } from "./campus.js";
 import { costDisplayFor, isFreeCost } from "./price.js";
+import {
+  ticketMatchesTimeFilter,
+  timeWindowFromStartMs,
+} from "./time.js";
 
 /**
  * Fixed identity for auto-ingested tickets. Shared so backend can stamp it and
@@ -209,13 +213,7 @@ export function filterTickets(
 ): Ticket[] {
   const list = tickets.filter((ticket) => {
     if (filters.freeOnly && !isFreeCost(ticket.cost)) return false;
-    if (filters.time === "now" && ticket.time !== "now") return false;
-    if (
-      filters.time === "hour" &&
-      !(ticket.time === "now" || ticket.time === "hour")
-    ) {
-      return false;
-    }
+    if (!ticketMatchesTimeFilter(ticket, filters.time)) return false;
     return true;
   });
 
@@ -369,21 +367,20 @@ const CONFIDENCE_WEIGHT: Record<FieldConfidence, number> = {
   low: 0.3,
 };
 
-const HOUR_MS = 60 * 60 * 1000;
-
 /**
  * Buckets normalized timing into a {@link TimeWindow} for ranking/filtering.
  * `null` (regex fallback / no stated time) defaults to "today".
  */
-export function timeWindowFromNormalized(tn: TimeNormalized | null): TimeWindow {
+export function timeWindowFromNormalized(
+  tn: TimeNormalized | null,
+  nowMs = Date.now(),
+): TimeWindow {
   if (!tn) return "today";
   if (tn.type === "now") return "now";
   if (tn.start) {
     const startMs = Date.parse(tn.start);
     if (!Number.isNaN(startMs)) {
-      const diff = startMs - Date.now();
-      if (diff <= 0) return "now";
-      if (diff <= HOUR_MS) return "hour";
+      return timeWindowFromStartMs(startMs, nowMs);
     }
   }
   return "today";

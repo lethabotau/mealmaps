@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   DEFAULT_FILTERS,
   OFF_CAMPUS_WHERE,
@@ -16,6 +16,7 @@ import {
   whereDisplayFor,
 } from "./tickets.js";
 import type { Ticket } from "./types.js";
+import { sydneyLocalToUtcMs } from "./time.js";
 
 describe("filterTickets", () => {
   it("returns only free tickets when freeOnly is true", () => {
@@ -75,6 +76,66 @@ describe("filterTickets", () => {
     );
     expect([...fromUpper].sort()).toEqual([...fromLower].sort());
     expect(fromUpper).not.toEqual(fromLower);
+  });
+
+  it("excludes future-weekday auto tickets from the Today filter", () => {
+    const now = sydneyLocalToUtcMs(2026, 7, 6, 10, 0);
+    vi.useFakeTimers();
+    vi.setSystemTime(now);
+    try {
+      const autoTickets: Ticket[] = [
+      {
+        id: "auto-today",
+        no: "1",
+        name: "Tonight coffee",
+        source: "Hall",
+        cost: 0,
+        area: "upper",
+        time: "today",
+        where: "location unconfirmed",
+        ends: "starts Mon 9:00 pm",
+        startsAtIso: new Date(sydneyLocalToUtcMs(2026, 7, 6, 21, 0)).toISOString(),
+        access: "check event page",
+        confirmed: "not yet confirmed",
+        worth: "maybe",
+        status: "available",
+        blurb: "b",
+        createdBy: SYSTEM_INGEST_USER,
+        trust: "unverified",
+        onCampus: true,
+      },
+      {
+        id: "auto-wed",
+        no: "2",
+        name: "Wed dinner",
+        source: "Soc",
+        cost: 0,
+        area: "upper",
+        time: "today",
+        where: "location unconfirmed",
+        ends: "starts Wed 7:00 pm",
+        startsAtIso: new Date(sydneyLocalToUtcMs(2026, 7, 8, 19, 0)).toISOString(),
+        access: "check event page",
+        confirmed: "not yet confirmed",
+        worth: "maybe",
+        status: "available",
+        blurb: "b",
+        createdBy: SYSTEM_INGEST_USER,
+        trust: "unverified",
+        onCampus: true,
+      },
+    ];
+
+    const result = filterTickets(
+      autoTickets,
+      { ...DEFAULT_FILTERS, time: "today" },
+      {},
+      "upper",
+    );
+    expect(result.map((t) => t.id)).toEqual(["auto-today"]);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 
