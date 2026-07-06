@@ -7,6 +7,7 @@ import {
   applyReport,
   createTicket,
   flushPersist,
+  getOverrides,
   getTicket,
   hasAutoTickets,
   initStore,
@@ -189,6 +190,120 @@ describe("ticketStore persistence", () => {
     initStore({ force: true });
 
     expect(listTickets()).toHaveLength(0);
+  });
+
+  it("promotes possible-tier ticket on food_yes report", () => {
+    const { ticket } = insertAutoTicket({
+      eventId: "evt-possible",
+      name: "Puzzlesoc Social Session",
+      society: "Puzzle Society",
+      cost: 0,
+      time: "today",
+      worth: "maybe",
+      ends: "starts Mon 3:00 pm",
+      sourceUrl: "https://example.com",
+      blurb: "Food here isn't confirmed yet.",
+      foodLikelihood: "possible",
+      possibleTier: true,
+    });
+    expect(ticket?.foodStatus).toBe("unconfirmed");
+
+    applyReport(ticket!.id, "food_yes", { userId: "u1", displayName: "Pat" });
+
+    const updated = getTicket(ticket!.id);
+    expect(updated?.foodStatus).toBeUndefined();
+    expect(updated?.trust).toBe("confirmed");
+    expect(updated?.foodLikelihood).toBe("medium");
+  });
+
+  it("suppresses possible-tier ticket on food_no and blocks re-ingest", () => {
+    const { ticket } = insertAutoTicket({
+      eventId: "evt-nope",
+      name: "Trivia Night!",
+      society: "Antique Society",
+      cost: 0,
+      time: "today",
+      worth: "maybe",
+      ends: "starts Mon 5:00 pm",
+      sourceUrl: "https://example.com",
+      blurb: "Food here isn't confirmed yet.",
+      foodLikelihood: "possible",
+      possibleTier: true,
+    });
+
+    applyReport(ticket!.id, "food_no", { userId: "u2", displayName: "Sam" });
+
+    expect(getTicket(ticket!.id)).toBeUndefined();
+    expect(listTickets()).toHaveLength(0);
+
+    const retry = insertAutoTicket({
+      eventId: "evt-nope",
+      name: "Trivia Night!",
+      society: "Antique Society",
+      cost: 0,
+      time: "today",
+      worth: "maybe",
+      ends: "starts Mon 5:00 pm",
+      sourceUrl: "https://example.com",
+      blurb: "Food here isn't confirmed yet.",
+      foodLikelihood: "possible",
+      possibleTier: true,
+    });
+    expect(retry.inserted).toBe(false);
+  });
+
+  it("persists suppressed event ids across reload", async () => {
+    const { ticket } = insertAutoTicket({
+      eventId: "evt-suppress-persist",
+      name: "Trivia Night!",
+      society: "Antique Society",
+      cost: 0,
+      time: "today",
+      worth: "maybe",
+      ends: "starts Mon 5:00 pm",
+      sourceUrl: "https://example.com",
+      blurb: "Food here isn't confirmed yet.",
+      foodLikelihood: "possible",
+      possibleTier: true,
+    });
+
+    applyReport(ticket!.id, "food_no", { userId: "u3", displayName: "Lee" });
+    await flushPersist();
+
+    initStore({ force: true });
+    const retry = insertAutoTicket({
+      eventId: "evt-suppress-persist",
+      name: "Trivia Night!",
+      society: "Antique Society",
+      cost: 0,
+      time: "today",
+      worth: "maybe",
+      ends: "starts Mon 5:00 pm",
+      sourceUrl: "https://example.com",
+      blurb: "Food here isn't confirmed yet.",
+      foodLikelihood: "possible",
+      possibleTier: true,
+    });
+    expect(retry.inserted).toBe(false);
+  });
+
+  it("still applies standard still/gone reports on normal tickets", () => {
+    const ticket = createTicket(
+      {
+        name: "Free Pizza",
+        source: "CS Club",
+        cost: 0,
+        area: "upper",
+        where: "Quadrangle",
+        ends: "30 min",
+        access: "Open to all",
+        blurb: "Fresh batch.",
+      },
+      { userId: "u1", displayName: "Alice" },
+    );
+
+    applyReport(ticket.id, "gone", { userId: "u2", displayName: "Bob" });
+    expect(getOverrides()[ticket.id]).toBe("gone");
   });
 });
 

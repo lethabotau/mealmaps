@@ -35,6 +35,7 @@ describe("runIngest resilience", () => {
       expect(summary).toEqual({
         fetched: 0,
         classified: 0,
+        possible: 0,
         inserted: 0,
         insertedTickets: [],
       });

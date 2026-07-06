@@ -94,7 +94,15 @@ ticketsRouter.post(
     }
 
     const kind = req.body?.kind as ReportKind | undefined;
-    const allowed: ReportKind[] = ["still", "gone", "queue", "members", "all"];
+    const allowed: ReportKind[] = [
+      "still",
+      "gone",
+      "queue",
+      "members",
+      "all",
+      "food_yes",
+      "food_no",
+    ];
     if (!kind || !allowed.includes(kind)) {
       res.status(400).json({ error: "Invalid report kind" });
       return;
@@ -112,7 +120,7 @@ ticketsRouter.post(
       overrides: getOverrides(),
       confirm: getConfirmMeta(),
       report,
-      ticket: getTicket(ticket.id),
+      ticket: getTicket(ticket.id) ?? null,
     });
   },
 );

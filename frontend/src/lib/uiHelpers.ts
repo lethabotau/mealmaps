@@ -76,4 +76,6 @@ export const REPORT_TOAST: Record<string, string> = {
   queue: "Long queue noted on the ticket.",
   members: "Access updated → members only.",
   all: "Access updated → open to all.",
+  food_yes: "Food confirmed — ticket promoted. Thanks!",
+  food_no: "Marked no food — hidden from the pass.",
 };

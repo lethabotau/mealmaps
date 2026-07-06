@@ -19,11 +19,11 @@ function walkLine(ticket: TicketView): string {
 }
 
 function stampLabel(ticket: TicketView): string {
-  return ticket.trust === "unverified" ? "UNVERIFIED" : ticket.worthLabel;
+  return ticket.stampLabel;
 }
 
 function stampColor(ticket: TicketView): string {
-  return ticket.trust === "unverified" ? "#B7791F" : ticket.worthColor;
+  return ticket.stampColor;
 }
 
 export function NowServingBoard({ tickets, onSelectTicket }: NowServingBoardProps) {

@@ -29,4 +29,34 @@ describe("TicketCard", () => {
     expect(screen.getByText("FREE")).toBeInTheDocument();
     expect(screen.getByText("GO NOW")).toBeInTheDocument();
   });
+
+  it("renders FOOD? stamp and confirm prompt for possible-tier tickets", () => {
+    const ticket = toTicketView({
+      id: "t2",
+      no: "1044",
+      name: "Trivia Night!",
+      source: "Antique Society",
+      cost: 0,
+      area: "upper",
+      time: "today",
+      where: "Quadrangle",
+      ends: "starts Mon 5:00 pm",
+      access: "Open to all",
+      confirmed: "not yet confirmed",
+      worth: "maybe",
+      status: "available",
+      blurb: "Food here isn't confirmed yet.",
+      createdBy: { userId: "ingest", displayName: "MealMap Ingest" },
+      trust: "unverified",
+      foodStatus: "unconfirmed",
+      foodLikelihood: "possible",
+    });
+
+    render(<TicketCard ticket={ticket} onClick={() => {}} />);
+
+    expect(screen.getByText("FOOD?")).toBeInTheDocument();
+    expect(
+      screen.getByText("Been here? Confirm if there's food"),
+    ).toBeInTheDocument();
+  });
 });

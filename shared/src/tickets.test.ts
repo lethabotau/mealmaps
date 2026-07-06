@@ -137,6 +137,46 @@ describe("filterTickets", () => {
       vi.useRealTimers();
     }
   });
+
+  it("ranks possible-tier autos below food-likely unverified autos", () => {
+    const human: Ticket = {
+      ...SEED_TICKETS[0],
+      id: "human",
+      trust: "confirmed",
+    };
+    const foodLikely: Ticket = {
+      id: "auto-food",
+      no: "1",
+      name: "Boodle Fight",
+      source: "Soc",
+      cost: 0,
+      area: "upper",
+      time: "today",
+      where: "location unconfirmed",
+      ends: "starts Mon 12:00 pm",
+      access: "check event page",
+      confirmed: "not yet confirmed",
+      worth: "high",
+      status: "available",
+      blurb: "b",
+      createdBy: SYSTEM_INGEST_USER,
+      trust: "unverified",
+      onCampus: true,
+    };
+    const possible: Ticket = {
+      ...foodLikely,
+      id: "auto-possible",
+      name: "Trivia Night",
+      foodStatus: "unconfirmed",
+      foodLikelihood: "possible",
+    };
+
+    const sorted = filterTickets(
+      [possible, foodLikely, human],
+      DEFAULT_FILTERS,
+    ).map((t) => t.id);
+    expect(sorted).toEqual(["human", "auto-food", "auto-possible"]);
+  });
 });
 
 describe("normalizeArea", () => {

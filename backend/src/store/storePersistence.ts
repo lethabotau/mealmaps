@@ -17,6 +17,8 @@ export interface StoreSnapshot {
   confirm: Record<string, TicketConfirmMeta>;
   reports: ReportRecord[];
   ingestedEventIds: string[];
+  /** Event ids crowd-marked as no-food — ingest must not resurrect. */
+  suppressedEventIds: string[];
 }
 
 export interface PersistedStoreState {
@@ -39,6 +41,10 @@ function isValidSnapshot(value: unknown): value is StoreSnapshot {
   if (!Array.isArray(value.reports)) return false;
   if (!Array.isArray(value.ingestedEventIds)) return false;
   if (!value.ingestedEventIds.every((id) => typeof id === "string")) return false;
+  if ("suppressedEventIds" in value) {
+    if (!Array.isArray(value.suppressedEventIds)) return false;
+    if (!value.suppressedEventIds.every((id) => typeof id === "string")) return false;
+  }
   return true;
 }
 
@@ -52,6 +58,7 @@ export function resolveDataFile(): string | null {
 export function snapshotFromState(
   state: PersistedStoreState,
   ingestedEventIds: Set<string>,
+  suppressedEventIds: Set<string>,
 ): StoreSnapshot {
   return {
     version: SNAPSHOT_VERSION,
@@ -60,6 +67,7 @@ export function snapshotFromState(
     confirm: state.confirm,
     reports: state.reports,
     ingestedEventIds: [...ingestedEventIds],
+    suppressedEventIds: [...suppressedEventIds],
   };
 }
 

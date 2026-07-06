@@ -81,6 +81,35 @@ export const OFF_CAMPUS_WHERE = "off-campus event";
 /** Actionable where-line for on-campus tickets awaiting a crowd pin. */
 export const PINNABLE_WHERE = "📍 Been here? Pin the location";
 
+/** Amber stamp for possible-tier tickets (food plausible but unstated). */
+export const POSSIBLE_FOOD_STAMP = "FOOD?";
+export const POSSIBLE_FOOD_COLOR = "#B7791F";
+export const POSSIBLE_FOOD_CONFIRM_PROMPT =
+  "Been here? Confirm if there's food";
+
+export function isPossibleFoodTicket(ticket: Ticket): boolean {
+  return ticket.foodStatus === "unconfirmed";
+}
+
+/** Event id from an auto ticket id (`auto-<eventId>`), or null. */
+export function eventIdFromAutoTicketId(ticketId: string): string | null {
+  return ticketId.startsWith("auto-") ? ticketId.slice(5) : null;
+}
+
+export function ticketStampForView(
+  ticket: Ticket,
+  worthLabel: string,
+  worthColor: string,
+): { label: string; color: string } {
+  if (isPossibleFoodTicket(ticket)) {
+    return { label: POSSIBLE_FOOD_STAMP, color: POSSIBLE_FOOD_COLOR };
+  }
+  if (ticket.trust === "unverified") {
+    return { label: "UNVERIFIED", color: "#B7791F" };
+  }
+  return { label: worthLabel, color: worthColor };
+}
+
 export function isOnCampus(ticket: Ticket): boolean {
   return ticket.onCampus !== false;
 }
@@ -153,11 +182,18 @@ export function worthRank(w: WorthLevel): number {
 }
 
 /**
- * Trust tier for ranking: confirmed (or absent = human) sorts above unverified
- * (auto-ingested) tickets.
+ * Sort tier: confirmed humans & promoted tickets (0) → food-likely autos (1)
+ * → possible-tier autos (2).
  */
+export function foodTierRank(ticket: Ticket): number {
+  if (isPossibleFoodTicket(ticket)) return 2;
+  if (ticket.trust === "unverified") return 1;
+  return 0;
+}
+
+/** @deprecated Prefer {@link foodTierRank} for sort order. */
 export function trustRank(ticket: Ticket): number {
-  return ticket.trust === "unverified" ? 1 : 0;
+  return foodTierRank(ticket);
 }
 
 /** Time proximity for ranking: sooner food sorts first (now < hour < today). */
@@ -224,8 +260,8 @@ export function filterTickets(
     computeWalk(vantageCoords, ticket.coords) ?? 26;
 
   return list.sort((a, b) => {
-    const trustDiff = trustRank(a) - trustRank(b);
-    if (trustDiff !== 0) return trustDiff;
+    const tierDiff = foodTierRank(a) - foodTierRank(b);
+    if (tierDiff !== 0) return tierDiff;
 
     const aGone = effectiveStatus(a, overrides) === "gone" ? 1 : 0;
     const bGone = effectiveStatus(b, overrides) === "gone" ? 1 : 0;
@@ -261,6 +297,10 @@ export function toTicketView(
     ? computeWalk(areaVantage(vantage), ticket.coords)
     : null;
   const cost = costDisplayFor(ticket.cost, ticket.sourcePrice);
+  const worthLabel = WORTH_LABELS[ticket.worth];
+  const worthColor = WORTH_COLORS[ticket.worth];
+  const stamp = ticketStampForView(ticket, worthLabel, worthColor);
+  const isPossibleFood = isPossibleFoodTicket(ticket);
 
   return {
     ...ticket,
@@ -278,12 +318,16 @@ export function toTicketView(
     endsColor: timeLine.color,
     costLabel: cost.label,
     costColor: cost.color,
-    worthLabel: WORTH_LABELS[ticket.worth],
-    worthColor: WORTH_COLORS[ticket.worth],
+    worthLabel,
+    worthColor,
     statusLabel: STATUS_LABELS[status],
     statusColor: STATUS_COLORS[status],
     confirmCount: meta?.count ?? 3,
     lastChecked: meta?.last ?? "4 min ago",
+    isPossibleFood,
+    stampLabel: stamp.label,
+    stampColor: stamp.color,
+    foodConfirmPrompt: isPossibleFood ? POSSIBLE_FOOD_CONFIRM_PROMPT : null,
   };
 }
 

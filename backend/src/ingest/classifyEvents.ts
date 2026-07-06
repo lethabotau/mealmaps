@@ -100,51 +100,92 @@ function hasSocietyFoodContext(haystack: string): boolean {
   return false;
 }
 
-/** Generic social formats — category alone is never enough. */
-const GENERIC_SOCIAL_PATTERNS = [
-  "bingo",
-  "trivia",
-  "watch party",
-  "board game",
-  "boardgames",
-  "games night",
-  "game night",
-  "tcgs",
-  "meetup",
-  "lounge",
-  "pop-up library",
-  "library",
-  "hangout",
-  " chill",
-  "roost",
+/** Generic hangouts that stay hard-none (not upgraded to possible). */
+const HARD_NONE_SOCIAL_PATTERNS = [
   "touhou",
-  "nintendo",
-  "mii meetup",
-  "puzzlesoc",
+  "roost",
   "webcomic",
   "bagl media",
+  "snap bingo",
   "online games",
+  "online tournament",
   "lan lounge",
-  " ks mt",
-  " ksa mt",
-  "toes on tour",
+  "pop-up library",
   "agm",
+  "ks mt",
+  "ksa mt",
+  "toes on tour",
 ];
 
-function isGenericSocialWithoutProvision(event: SocietyEvent): boolean {
+/** Social formats where food is plausible but unstated → possible tier. */
+const POSSIBLE_SOCIAL_SIGNALS = [
+  "social session",
+  "meetup",
+  "games night",
+  "game night",
+  "trivia",
+  "boardgame",
+  "board game",
+  "weekly social",
+  "hangout",
+  "lounge",
+  "friday boardgames",
+  "tcgs",
+];
+
+function isSocialCategory(event: SocietyEvent): boolean {
+  const cat = event.location.toLowerCase();
+  return /party|bbq|social|trivia|quiz/i.test(cat);
+}
+
+function isOnlineEvent(event: SocietyEvent): boolean {
+  return /\bonline\b/i.test(eventNameHaystack(event));
+}
+
+function isHardNoneEvent(event: SocietyEvent): boolean {
   const full = eventFullHaystack(event);
-  const signal = eventNameHaystack(event);
-  if (!GENERIC_SOCIAL_PATTERNS.some((pattern) => full.includes(pattern))) {
-    return false;
+  const name = eventNameHaystack(event);
+  if (isCommercialOuting(full)) return true;
+  if (isOnlineEvent(event)) return true;
+  if (
+    /mock exam|peer mentoring|rehearsal|workshop|presentation|bjj|dodgeball|open tournament|training|internals|mentoring|site tour|run club|op shop|bouldering|ice skating|plasma donation|crew meeting|site visit|orchestra|wind symphony|table tennis|quadball|paint & sip|escape room|hyperkarting|cruise|arcade|food crawl|pub crawl|bar crawl|skate|hike|walk -|watch party|lan lounge/i.test(
+      full,
+    )
+  ) {
+    return true;
   }
-  return !hasExplicitProvisionSignal(signal) && !hasSocietyFoodContext(signal);
+  if (HARD_NONE_SOCIAL_PATTERNS.some((p) => full.includes(p))) {
+    if (/trivia/i.test(full)) return false;
+    if (/social session/i.test(full)) return false;
+    return true;
+  }
+  if (/snap bingo|^bingo/i.test(name)) return true;
+  return false;
+}
+
+function fallbackPossibleFood(event: SocietyEvent): string | null {
+  if (!isSocialCategory(event)) return null;
+  if (isHardNoneEvent(event)) return null;
+  if (fallbackLikelyProvidedFood(event)) return null;
+
+  const full = eventFullHaystack(event);
+  const hit = POSSIBLE_SOCIAL_SIGNALS.find((signal) => full.includes(signal));
+  if (hit) return hit;
+
+  if (
+    /party\/bbq\/social/i.test(event.location.toLowerCase()) &&
+    /weekly|social|session|meetup/i.test(full)
+  ) {
+    return "society social (food plausible, unstated)";
+  }
+  return null;
 }
 
 function fallbackLikelyProvidedFood(event: SocietyEvent): string | null {
   const full = eventFullHaystack(event);
   const nameText = eventNameHaystack(event);
   if (isCommercialOuting(full)) return null;
-  if (isGenericSocialWithoutProvision(event)) return null;
+  if (isHardNoneEvent(event)) return null;
 
   const hit =
     FOOD_KEYWORDS.find((keyword) => nameText.includes(keyword)) ??
@@ -171,8 +212,8 @@ function fallbackLikelyProvidedFood(event: SocietyEvent): string | null {
   return signal;
 }
 
-export type FoodLikelihood = "high" | "medium" | "low" | "none";
-const LIKELIHOODS: FoodLikelihood[] = ["high", "medium", "low", "none"];
+export type FoodLikelihood = "high" | "medium" | "possible" | "low" | "none";
+const LIKELIHOODS: FoodLikelihood[] = ["high", "medium", "possible", "low", "none"];
 
 /** Likelihoods that survive ingest — only strong food signals are kept. */
 export type KeptLikelihood = "high" | "medium";
@@ -189,7 +230,17 @@ export interface ClassifiedVerdict {
 
 export interface ClassificationReport {
   kept: ClassifiedEvent[];
+  possible: PossibleEvent[];
   dropped: ClassifiedVerdict[];
+}
+/** An event where food is plausible but unstated — inserts as possible tier. */
+export interface PossibleEvent {
+  event: SocietyEvent;
+  food_likelihood: "possible";
+  reason: string;
+  blurb: string | null;
+  venue_hint: string | null;
+  on_campus: boolean;
 }
 /** An event the pipeline decided is food-likely (only "high"/"medium" survive). */
 export interface ClassifiedEvent {
@@ -202,6 +253,18 @@ export interface ClassifiedEvent {
   venue_hint: string | null;
   /** False for clearly off-campus events (e.g. suburb food crawl). */
   on_campus: boolean;
+}
+
+function toPossibleEvent(verdict: ClassifiedVerdict): PossibleEvent | null {
+  if (verdict.food_likelihood !== "possible") return null;
+  return {
+    event: verdict.event,
+    food_likelihood: "possible",
+    reason: verdict.reason,
+    blurb: verdict.blurb,
+    venue_hint: verdict.venue_hint,
+    on_campus: verdict.on_campus,
+  };
 }
 
 function toClassifiedEvent(verdict: ClassifiedVerdict): ClassifiedEvent | null {
@@ -244,9 +307,15 @@ PRICE BOUNDARY (narrow):
 - The ~$15 cap applies ONLY when food provision is unstated or ambiguous — NOT when a provided meal is explicit.
 - High ticket price alone (escape room, cruise, arcade, sports) → none when the fee is clearly venue/activity entry, not a meal.
 
-AMBIGUITY — prefer medium over silent drop, but only with a real cue:
+AMBIGUITY — prefer medium when food is implied; use "possible" for plausible-but-unstated socials:
 - When the name suggests food context but provision is unclear (e.g. "X Society Dinner" with a price) → medium, not none.
-- Reserve "none" for confident non-provision (trivia, rehearsal, buy-your-own outing).
+- Society socials/hangouts/meetups in Party/BBQ/Social (or Quiz/Trivia) where food MIGHT be provided but is unstated → possible (NOT none).
+- Reserve "none" for confident non-provision: buy-your-own outings, online events, sport/classes/workshops/exams/rehearsals/mentoring, retail outings.
+
+THE "possible" TIER (between medium and none):
+- Use when a reasonable student might hope for snacks/food at a society social, but nothing in the data confirms provision.
+- Examples: Puzzlesoc Social Session (Party/BBQ/Social), Trivia Night, weekly meetup, games night, Mii Meetup.
+- Do NOT use "possible" for pub crawls, cruises, restaurant outings, online events, sport sessions, classes/workshops/exams/rehearsals/mentoring, or retail outings — those stay "none".
 
 CATEGORY IS NOT A FOOD CUE:
 Party/BBQ/Social or any generic social category alone is NEVER a food cue. Bingo, trivia, games/console meetups, watch parties, lounges, libraries, AGMs/MTs, and generic hangouts need an explicit meal/snack/drink-provided signal in the event name OR legitimate society food context to reach medium.
@@ -256,12 +325,14 @@ Party/BBQ/Social or any generic social category alone is NEVER a food cue. Bingo
 - "Christian Union Lunch; Sports and Hangs" → medium ("Lunch" explicit in name)
 - "T2 Coffee Night" / "TOUR DE TAC — BETA COFFEE" (Tea & Coffee Society) → high/medium (provision IS the event)
 
-ALWAYS "none":
+ALWAYS "none" (never "possible"):
 - Pub crawls, bar crawls, bar nights, club nights, harbour/city cruises
 - Restaurant outings where attendees pay own way ("@ Restaurant", "order your own")
 - Food crawls where attendees buy at each stop (Cabramatta Food Crawl — you pay at shops)
 - Trips to commercial venues to buy lunch/dinner individually (Kokoroya Maroubra social lunch)
-- Trivia, bingo, games/console meetups, watch parties, lounges, libraries, AGMs/MTs, generic hangouts with no meal/snack/drink signal
+- Online events (online tournament, online games night)
+- Sport sessions, classes, workshops, exams, rehearsals, mentoring, retail outings (op shop hop)
+- Snap Bingo, Touhou Thursdays, Roost n Chill, LAN Lounge — generic hangouts with no food plausibility
 
 POSITIVE signals (food likely provided):
 - BBQ, sausage sizzle, bake sale, sponsor night with catering
@@ -279,16 +350,22 @@ Few-shot examples (name → food_likelihood):
 - "Member Lunch — $5" → medium/high (provided member lunch)
 - "Games Night — snacks provided" → medium (explicit snacks provided)
 - "Christian Union Lunch; Sports and Hangs — free" → medium ("Lunch" explicit in name)
-- "Snap Bingo — free" → none (Party/BBQ/Social category alone; bingo is not food)
+- "Snap Bingo — free" → none (bingo game, not a food social)
 - "ISCKON W6 — free" → medium (Hare Krishna society context; food-centric event)
+- "Puzzlesoc Social Session — Party/BBQ/Social" → possible (society social; food plausible but unstated)
+- "Trivia Night!" → possible (social event; food sometimes provided, unstated here)
+- "BJJ All Levels Class" → none (martial arts class, not a food social)
+- "2026 Weekly Online Tournament 27" → none (online event)
+- "Cabramatta Food Crawl" → none (attendees buy at each stop)
 
 CRITICAL: Party/BBQ/Social category alone is NEVER sufficient. Generic social formats need explicit meal/snack/drink-provided language in the name or legitimate society food context (Hare Krishna/ISKCON, Tea & Coffee Society coffee events, "Lunch" in Christian Union events).
 
 For each event (id, name, category, society, price, starts_at) return food_likelihood:
 - "high": explicit PROVIDED food — BBQ, sizzle, free meals, bake sale, boodle fight, cultural dinner with included meal, catered sponsor feed
 - "medium": food strongly implied OR ambiguous meal context without commercial-venue outing pattern — society dinner with price, member lunch, "lunch" in name, snacks provided
+- "possible": society social/hangout/meetup in Party/BBQ/Social or Quiz/Trivia where food provision is plausible but unstated — NOT for online/sport/class/workshop/commercial outings
 - "low": weak cue only; ticket $15+ with unstated provision
-- "none": confident buy-your-own outing or confident no food
+- "none": confident buy-your-own outing or confident no food (sport, class, online, exam, rehearsal, retail)
 
 Also return for each event (use the event name + society for food cues; ignore category/location field for BBQ/Social classification — "Party/BBQ/Social" is NOT a food signal):
 - venue_hint: string|null — UNSW Kensington campus location ONLY when explicitly stated. NEVER guess. If unclear, null.
@@ -296,7 +373,7 @@ Also return for each event (use the event name + society for food cues; ignore c
 - blurb: string — 1-2 sentences describing the event for a campus food pass ticket. Write like a sharp, dry-witted friend: grounded and matter-of-fact, not robotic or salesy. Mention only stated facts (society name exactly as given, event name, day/time from starts_at, price, category). Show, don't tell: name the event type and let that imply food — never explain that "food is the point" or call something "food-focused". Do not repeat the society name if it already appears in the event title. Must NEVER invent food details, locations, or vibes not in the data. No exclamation marks, no emoji, no marketing adjectives ("amazing", "delicious"), no first person. If location is unknown, you may note that someone should confirm it. Match the app's diner-ticket dryness.
 
 Respond with ONLY a strict JSON array, one object per input event:
-[{"id":"<event id>","food_likelihood":"high|medium|low|none","reason":"one short line","venue_hint":null|"Quadrangle"|...,"on_campus":true|false,"blurb":"..."}]
+[{"id":"<event id>","food_likelihood":"high|medium|possible|low|none","reason":"one short line","venue_hint":null|"Quadrangle"|...,"on_campus":true|false,"blurb":"..."}]
 No prose, no markdown code fences.`;
 
 function eventId(event: SocietyEvent): string {
@@ -432,6 +509,19 @@ function classifyChunkFallback(events: SocietyEvent[]): ClassifiedVerdict[] {
         ),
       };
     }
+    const possible = fallbackPossibleFood(event);
+    if (possible) {
+      return {
+        event,
+        food_likelihood: "possible" as const,
+        reason: `plausible social: "${possible}"`,
+        blurb: null,
+        venue_hint: null,
+        on_campus: !isCommercialOuting(
+          `${event.event_name} ${event.location} ${event.society_name}`.toLowerCase(),
+        ),
+      };
+    }
     const commercial = isCommercialOuting(
       `${event.event_name} ${event.location} ${event.society_name}`.toLowerCase(),
     );
@@ -486,13 +576,22 @@ export async function classifyEventsWithReport(
 ): Promise<ClassificationReport> {
   const all = await classifyAllVerdicts(events);
   const kept: ClassifiedEvent[] = [];
+  const possible: PossibleEvent[] = [];
   const dropped: ClassifiedVerdict[] = [];
   for (const verdict of all) {
     const survivor = toClassifiedEvent(verdict);
-    if (survivor) kept.push(survivor);
-    else dropped.push(verdict);
+    if (survivor) {
+      kept.push(survivor);
+      continue;
+    }
+    const maybe = toPossibleEvent(verdict);
+    if (maybe) {
+      possible.push(maybe);
+      continue;
+    }
+    dropped.push(verdict);
   }
-  return { kept, dropped };
+  return { kept, possible, dropped };
 }
 
 export function formatClassificationLine(verdict: ClassifiedVerdict): string {

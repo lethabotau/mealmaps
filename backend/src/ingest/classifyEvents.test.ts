@@ -151,6 +151,48 @@ describe("classifyEvents fallback (no API key)", () => {
 
     expect(report.kept.map((v) => v.event.event_id).sort()).toEqual(["coffee", "isckon"]);
     expect(report.dropped.map((v) => v.event.event_id).sort()).toEqual(["bingo", "touhou"]);
+    expect(report.possible).toHaveLength(0);
+    process.env.ANTHROPIC_API_KEY = prevKey;
+  });
+
+  it("routes plausible society socials to possible tier", async () => {
+    delete process.env.ANTHROPIC_API_KEY;
+    const report = await classifyEventsWithReport([
+      mockEvent({
+        event_id: "puzzle",
+        event_name: "Puzzlesoc Social Session Term 2 2026",
+        society_name: "UNSW Puzzle Society",
+        location: "Party/BBQ/Social",
+        price: "Free",
+      }),
+      mockEvent({
+        event_id: "trivia",
+        event_name: "Trivia Night!",
+        society_name: "Antique Society",
+        location: "Quiz/Trivia",
+        price: "Free",
+      }),
+      mockEvent({
+        event_id: "bjj",
+        event_name: "BJJ All Levels Class",
+        society_name: "UNSW Brazilian Jiu-Jitsu and Wrestling Society",
+        location: "Class/Workshop",
+        price: "Free",
+      }),
+      mockEvent({
+        event_id: "chess",
+        event_name: "2026 Weekly Online Tournament 27",
+        society_name: "UNSW Chess Club",
+        location: "Other",
+        price: "Free",
+      }),
+    ]);
+
+    expect(report.possible.map((v) => v.event.event_id).sort()).toEqual([
+      "puzzle",
+      "trivia",
+    ]);
+    expect(report.dropped.map((v) => v.event.event_id).sort()).toEqual(["bjj", "chess"]);
     process.env.ANTHROPIC_API_KEY = prevKey;
   });
 

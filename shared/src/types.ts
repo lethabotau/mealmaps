@@ -74,9 +74,14 @@ export interface Ticket {
    */
   onCampus?: boolean;
   /** Auto-ingest classifier tier — stored for deck/Q&A, not shown in UI. */
-  foodLikelihood?: "high" | "medium";
+  foodLikelihood?: "high" | "medium" | "possible";
   /** Auto-ingest classifier reason — stored for deck/Q&A, not shown in UI. */
   classifyReason?: string;
+  /**
+   * When `"unconfirmed"`, food at this event is plausible but unstated — crowd
+   * can confirm or deny via `food_yes` / `food_no` reports.
+   */
+  foodStatus?: FoodStatus;
 }
 
 export interface TicketConfirmMeta {
@@ -85,7 +90,17 @@ export interface TicketConfirmMeta {
   lastReportedBy?: UserIdentity;
 }
 
-export type ReportKind = "still" | "gone" | "queue" | "members" | "all";
+export type ReportKind =
+  | "still"
+  | "gone"
+  | "queue"
+  | "members"
+  | "all"
+  | "food_yes"
+  | "food_no";
+
+/** Set on possible-tier auto tickets until crowd confirms or denies food. */
+export type FoodStatus = "unconfirmed";
 
 export interface ReportRecord {
   id: string;
@@ -230,6 +245,13 @@ export interface TicketView extends Ticket {
   confirmCount: number;
   lastChecked: string;
   effectiveStatus: TicketStatus;
+  /** True when food provision is plausible but not yet confirmed. */
+  isPossibleFood: boolean;
+  /** Stamp on ticket stub (FOOD?, UNVERIFIED, or worth label). */
+  stampLabel: string;
+  stampColor: string;
+  /** Card/detail prompt for possible-tier tickets. */
+  foodConfirmPrompt: string | null;
 }
 
 export interface RankedTicketView extends TicketView {
