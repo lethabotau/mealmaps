@@ -5,8 +5,12 @@ import {
   CAMPUS_TIME_ZONE,
   inferStartMsFromEnds,
   isSameSydneyCalendarDay,
+  isTomorrowSydney,
+  formatSydneyDateTime,
+  formatSydneyNowPrompt,
   resolveTicketStartMs,
   sydneyCalendarDate,
+  sydneyEventDayLabel,
   sydneyLocalToUtcMs,
   ticketMatchesTimeFilter,
   timeWindowFromStartMs,
@@ -166,5 +170,29 @@ describe("resolveTicketStartMs", () => {
     const iso = "2026-07-08T12:00:00+10:00";
     const ticket = { ...autoBase(), startsAtIso: iso, ends: "starts Mon 9:00 am" };
     expect(resolveTicketStartMs(ticket)).toBe(Date.parse(iso));
+  });
+});
+
+describe("assistant clock helpers", () => {
+  const monMorning = sydneyLocalToUtcMs(2026, 7, 6, 10, 45);
+
+  it("formats Sydney wall time for the system prompt", () => {
+    expect(formatSydneyDateTime(monMorning)).toBe(
+      "Monday 6 July 2026, 10:45 am",
+    );
+    expect(formatSydneyNowPrompt(monMorning)).toBe(
+      "Current date/time: Monday 6 July 2026, 10:45 am (Australia/Sydney). All event times are Sydney time.",
+    );
+  });
+
+  it("labels event days in Sydney", () => {
+    const tue = sydneyLocalToUtcMs(2026, 7, 7, 11, 0);
+    expect(sydneyEventDayLabel(tue)).toBe("Tuesday 7 July");
+  });
+
+  it("detects tomorrow in Sydney", () => {
+    const tue = sydneyLocalToUtcMs(2026, 7, 7, 11, 0);
+    expect(isTomorrowSydney(tue, monMorning)).toBe(true);
+    expect(isTomorrowSydney(monMorning, monMorning)).toBe(false);
   });
 });

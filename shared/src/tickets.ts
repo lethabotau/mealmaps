@@ -22,6 +22,10 @@ import { SEED_AUTHORS } from "./seedUsers.js";
 import { areaVantage, computeWalk, coordsFor } from "./campus.js";
 import { costDisplayFor, isFreeCost } from "./price.js";
 import {
+  formatSydneyNowPrompt,
+  isTomorrowSydney,
+  resolveTicketStartMs,
+  sydneyEventDayLabel,
   ticketMatchesTimeFilter,
   timeWindowFromStartMs,
 } from "./time.js";
@@ -211,34 +215,83 @@ export function effectiveStatus(
 }
 
 /**
- * Reduce live tickets to the slim, answer-relevant shape the assistant model
- * sees as grounding context. Applies crowd overrides so "gone" is reflected.
+ * Reduce live tickets to resolved, schedule-aware context for the assistant.
+ * Uses the same TicketView resolution (walk, when label, cost label) as the UI.
  */
 export function ticketsForAssistant(
   tickets: Ticket[],
   overrides: TicketOverrides = {},
+  confirm: Record<string, TicketConfirmMeta> = {},
+  nowMs = Date.now(),
   vantage: CampusArea = "upper",
 ): AssistantTicketContext[] {
   return tickets.map((ticket) => {
-    const showWalk = isOnCampus(ticket);
-    const walk = showWalk
-      ? computeWalk(areaVantage(vantage), ticket.coords)
-      : null;
+    const view = toTicketView(ticket, overrides, confirm, vantage);
+    const startMs = resolveTicketStartMs(ticket, nowMs);
 
     return {
-      id: ticket.id,
-      name: ticket.name,
-      source: ticket.source,
-      cost: ticket.cost,
-      area: ticket.area,
-      walk,
-      where: whereDisplayFor(ticket),
-      ends: ticket.ends,
-      access: ticket.access,
-      worth: ticket.worth,
-      status: effectiveStatus(ticket, overrides),
+      id: view.id,
+      name: view.name,
+      source: view.source,
+      cost: view.cost,
+      costLabel: view.costLabel,
+      area: view.area,
+      walk: view.walk,
+      walkLabel: view.walkDetailText,
+      where: view.whereDisplay,
+      when: `${view.timeLabel} ${view.timeText}`,
+      access: view.access,
+      worth: view.worth,
+      status: view.effectiveStatus,
+      trust: view.trust ?? "confirmed",
+      foodUnconfirmed: view.isPossibleFood || undefined,
+      confirmedFood:
+        view.effectiveStatus !== "gone" && !view.isPossibleFood,
+      schedule: {
+        matchesToday: ticketMatchesTimeFilter(ticket, "today", nowMs),
+        matchesNow: ticketMatchesTimeFilter(ticket, "now", nowMs),
+        matchesTomorrow:
+          startMs !== null && isTomorrowSydney(startMs, nowMs),
+        dayLabel: startMs !== null ? sydneyEventDayLabel(startMs) : null,
+      },
     };
   });
+}
+
+/** System prompt for the voice assistant — clock is computed at request time. */
+export function buildAssistantSystemPrompt(nowMs = Date.now()): string {
+  const clock = formatSydneyNowPrompt(nowMs);
+  return `You are MealMap's voice assistant. Students ask what free or cheap \
+food is available on campus, and you answer out loud.
+
+${clock}
+
+Rules:
+- Answer ONLY from the ticket list in the user message. Never invent food, \
+locations, times, or prices.
+- Each ticket has schedule flags (matchesToday, matchesNow, matchesTomorrow), \
+dayLabel, and confirmedFood — trust them; Today flags use the same filter logic \
+as the app.
+- MealMap is about campus food. Treat "today", "free food", and "what's on" as \
+food questions unless the user clearly asks about something else.
+- For food today: only cite tickets where matchesToday, confirmedFood is true, \
+and status is not "gone". If none, say plainly there is nothing confirmed \
+today and name the nearest upcoming confirmedFood options with dayLabel and when \
+(e.g. "Nothing confirmed today — Tuesday has Christian Union's free lunch at \
+11am"). You may briefly mention foodUnconfirmed today events as unconfirmed.
+- For "tomorrow" / free food tomorrow: use matchesTomorrow and confirmedFood. \
+If only foodUnconfirmed matches, say food isn't confirmed yet.
+- For "this week": summarize upcoming confirmedFood tickets by dayLabel.
+- Keep it to 1-2 short, natural spoken sentences. No markdown, no lists, no emoji.
+- cost/costLabel: 0 or FREE means free. walk is minutes from upper campus \
+(null if unknown/off-campus). worth: high = go now.
+- If foodUnconfirmed is true, note food isn't confirmed yet.
+- Never say you don't know the current date — it is above.
+- Do not tell users to "check the event page" as your main answer when ticket \
+data already answers the question.
+- If no tickets match at all, say you don't know of anything matching.
+- Respond with JSON: {"answer": string, "citedTicketIds": string[]}. \
+citedTicketIds are ticket ids your answer relies on (may be empty).`;
 }
 
 export function filterTickets(

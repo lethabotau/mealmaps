@@ -139,13 +139,29 @@ export interface AssistantTicketContext {
   name: string;
   source: string;
   cost: number;
+  costLabel: string;
   area: CampusArea;
   walk: number | null;
+  walkLabel: string;
   where: string;
-  ends: string;
+  /** Resolved display time, e.g. "WHEN Mon 3:00 pm". */
+  when: string;
   access: string;
   worth: WorthLevel;
   status: TicketStatus;
+  trust: TrustTier | "confirmed";
+  /** True when food at this event is plausible but unconfirmed. */
+  foodUnconfirmed?: boolean;
+  /** True when society/event has confirmed or likely food (not possible-tier). */
+  confirmedFood: boolean;
+  schedule: {
+    /** Same logic as the app's Today filter. */
+    matchesToday: boolean;
+    matchesNow: boolean;
+    matchesTomorrow: boolean;
+    /** Sydney weekday+date when known, e.g. "Tuesday 7 July". */
+    dayLabel: string | null;
+  };
 }
 
 export interface ExtractedPost {

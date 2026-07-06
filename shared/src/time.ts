@@ -42,6 +42,66 @@ export function isSameSydneyCalendarDay(aMs: number, bMs: number): boolean {
   return sydneyCalendarDate(aMs) === sydneyCalendarDate(bMs);
 }
 
+/** True when eventMs falls on the Sydney calendar day after nowMs. */
+export function isTomorrowSydney(eventMs: number, nowMs = Date.now()): boolean {
+  const tomorrow = addDaysToSydneyDate(sydneyCalendarDate(nowMs), 1);
+  const tomorrowIso = toIsoDate(tomorrow.year, tomorrow.month, tomorrow.day);
+  return sydneyCalendarDate(eventMs) === tomorrowIso;
+}
+
+function toIsoDate(year: number, month: number, day: number): string {
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+/** Human-readable Sydney wall time, e.g. "Monday 6 July 2026, 10:45 AM". */
+export function formatSydneyDateTime(ms: number): string {
+  const weekday = new Intl.DateTimeFormat("en-AU", {
+    timeZone: CAMPUS_TIME_ZONE,
+    weekday: "long",
+  }).format(new Date(ms));
+  const day = new Intl.DateTimeFormat("en-AU", {
+    timeZone: CAMPUS_TIME_ZONE,
+    day: "numeric",
+  }).format(new Date(ms));
+  const month = new Intl.DateTimeFormat("en-AU", {
+    timeZone: CAMPUS_TIME_ZONE,
+    month: "long",
+  }).format(new Date(ms));
+  const year = new Intl.DateTimeFormat("en-AU", {
+    timeZone: CAMPUS_TIME_ZONE,
+    year: "numeric",
+  }).format(new Date(ms));
+  const time = new Intl.DateTimeFormat("en-AU", {
+    timeZone: CAMPUS_TIME_ZONE,
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  }).format(new Date(ms));
+  return `${weekday} ${day} ${month} ${year}, ${time}`;
+}
+
+/** Clock line injected into the assistant system prompt. */
+export function formatSydneyNowPrompt(nowMs = Date.now()): string {
+  return `Current date/time: ${formatSydneyDateTime(nowMs)} (Australia/Sydney). All event times are Sydney time.`;
+}
+
+/** Event day label for assistant answers, e.g. "Tuesday 7 July". */
+export function sydneyEventDayLabel(ms: number): string {
+  const weekday = new Intl.DateTimeFormat("en-AU", {
+    timeZone: CAMPUS_TIME_ZONE,
+    weekday: "long",
+  }).format(new Date(ms));
+  const day = new Intl.DateTimeFormat("en-AU", {
+    timeZone: CAMPUS_TIME_ZONE,
+    day: "numeric",
+  }).format(new Date(ms));
+  const month = new Intl.DateTimeFormat("en-AU", {
+    timeZone: CAMPUS_TIME_ZONE,
+    month: "long",
+  }).format(new Date(ms));
+  return `${weekday} ${day} ${month}`;
+}
+
 function zonedParts(ms: number) {
   const fmt = new Intl.DateTimeFormat("en-US", {
     timeZone: CAMPUS_TIME_ZONE,
