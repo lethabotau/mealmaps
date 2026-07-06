@@ -1,7 +1,11 @@
 import type { CreateTicketInput, ReportKind } from "@mealmap/shared";
 import { normalizeTicketCost } from "@mealmap/shared";
 import { Router } from "express";
-import { requireWriteAuth, resolveAuthUser } from "../auth/clerk.js";
+import {
+  clerkAuthMiddleware,
+  requireWriteAuth,
+  resolveAuthUser,
+} from "../auth/clerk.js";
 import {
   applyReport,
   createTicket,
@@ -38,7 +42,7 @@ ticketsRouter.get("/:id", (req, res) => {
   });
 });
 
-ticketsRouter.post("/", requireWriteAuth, async (req, res) => {
+ticketsRouter.post("/", clerkAuthMiddleware, requireWriteAuth, async (req, res) => {
   const body = req.body as Partial<CreateTicketInput> & {
     createdBy?: unknown;
   };
@@ -72,36 +76,43 @@ ticketsRouter.post("/", requireWriteAuth, async (req, res) => {
   res.status(201).json({ ticket });
 });
 
-ticketsRouter.post("/:id/report", requireWriteAuth, async (req, res) => {
-  const ticketId = req.params.id;
-  if (!ticketId || Array.isArray(ticketId)) {
-    res.status(400).json({ error: "Invalid ticket id" });
-    return;
-  }
+ticketsRouter.post(
+  "/:id/report",
+  clerkAuthMiddleware,
+  requireWriteAuth,
+  async (req, res) => {
+    const ticketId = req.params.id;
+    if (!ticketId || Array.isArray(ticketId)) {
+      res.status(400).json({ error: "Invalid ticket id" });
+      return;
+    }
 
-  const ticket = getTicket(ticketId);
-  if (!ticket) {
-    res.status(404).json({ error: "Ticket not found" });
-    return;
-  }
+    const ticket = getTicket(ticketId);
+    if (!ticket) {
+      res.status(404).json({ error: "Ticket not found" });
+      return;
+    }
 
-  const kind = req.body?.kind as ReportKind | undefined;
-  const allowed: ReportKind[] = ["still", "gone", "queue", "members", "all"];
-  if (!kind || !allowed.includes(kind)) {
-    res.status(400).json({ error: "Invalid report kind" });
-    return;
-  }
+    const kind = req.body?.kind as ReportKind | undefined;
+    const allowed: ReportKind[] = ["still", "gone", "queue", "members", "all"];
+    if (!kind || !allowed.includes(kind)) {
+      res.status(400).json({ error: "Invalid report kind" });
+      return;
+    }
 
-  const locationText =
-    typeof req.body?.locationText === "string" ? req.body.locationText : undefined;
+    const locationText =
+      typeof req.body?.locationText === "string"
+        ? req.body.locationText
+        : undefined;
 
-  const reportedBy = await resolveAuthUser(req);
-  const report = applyReport(ticket.id, kind, reportedBy, locationText);
+    const reportedBy = await resolveAuthUser(req);
+    const report = applyReport(ticket.id, kind, reportedBy, locationText);
 
-  res.json({
-    overrides: getOverrides(),
-    confirm: getConfirmMeta(),
-    report,
-    ticket: getTicket(ticket.id),
-  });
-});
+    res.json({
+      overrides: getOverrides(),
+      confirm: getConfirmMeta(),
+      report,
+      ticket: getTicket(ticket.id),
+    });
+  },
+);

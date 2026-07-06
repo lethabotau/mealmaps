@@ -1,12 +1,12 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { Router } from "express";
-import { requireWriteAuth } from "../auth/clerk.js";
+import { clerkAuthMiddleware, requireWriteAuth } from "../auth/clerk.js";
 import { extractWithLlm, regexToExtractResult } from "../services/extractService.js";
 
 export const extractRouter = Router();
 
 // Gated like other write routes — LLM extraction costs API money.
-extractRouter.post("/", requireWriteAuth, async (req, res) => {
+extractRouter.post("/", clerkAuthMiddleware, requireWriteAuth, async (req, res) => {
   const text = typeof req.body?.text === "string" ? req.body.text : "";
   if (!text.trim()) {
     res.status(400).json({ error: "Missing text" });

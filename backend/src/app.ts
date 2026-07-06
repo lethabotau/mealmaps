@@ -1,6 +1,5 @@
 import cors from "cors";
 import express from "express";
-import { clerkAuthMiddleware } from "./auth/clerk.js";
 import { assistantRouter } from "./routes/assistant.js";
 import { extractRouter } from "./routes/extract.js";
 import { ingestRouter } from "./routes/ingest.js";
@@ -15,7 +14,6 @@ export function createApp() {
   }
 
   app.use(express.json());
-  app.use(clerkAuthMiddleware);
 
   app.get("/health", (_req, res) => {
     res.json({ ok: true, service: "mealmap-backend" });

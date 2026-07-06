@@ -2,7 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { ticketsForAssistant } from "@mealmap/shared";
 import type { AssistantResponse } from "@mealmap/shared";
 import { Router } from "express";
-import { requireWriteAuth } from "../auth/clerk.js";
+import { clerkAuthMiddleware, requireWriteAuth } from "../auth/clerk.js";
 import { getOverrides, listTickets } from "../store/ticketStore.js";
 
 export const assistantRouter = Router();
@@ -23,7 +23,7 @@ locations, times, or prices.
 - Respond with a JSON object: {"answer": string, "citedTicketIds": string[]}. \
 citedTicketIds are the ids of the tickets your answer relies on (may be empty).`;
 
-assistantRouter.post("/", requireWriteAuth, async (req, res) => {
+assistantRouter.post("/", clerkAuthMiddleware, requireWriteAuth, async (req, res) => {
   const question =
     typeof req.body?.question === "string" ? req.body.question.trim() : "";
 
