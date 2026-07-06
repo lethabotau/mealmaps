@@ -82,9 +82,9 @@ export function useTickets() {
       const data = await reportTicket(id, kind, locationText);
       setState((prev) => ({
         ...prev,
-        // Merge the updated ticket so a trust flip / newly-pinned location
-        // (coords + where) re-renders and re-ranks without a full reload.
-        tickets: prev.tickets.map((t) => (t.id === data.ticket.id ? data.ticket : t)),
+        tickets: data.ticket
+          ? prev.tickets.map((t) => (t.id === data.ticket.id ? data.ticket : t))
+          : prev.tickets.filter((t) => t.id !== id),
         overrides: data.overrides,
         confirm: data.confirm,
       }));

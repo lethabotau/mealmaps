@@ -20,7 +20,7 @@ const REPORT_BUTTONS: Array<{ label: string; color: string; kind: ReportKind }> 
 
 export function DetailPanel({ ticket, toast, onClose, onReport }: DetailPanelProps) {
   const isAutoSource = ticket.createdBy.userId === SYSTEM_INGEST_USER.userId;
-  const isUnverified = ticket.trust === "unverified";
+  const isUnverified = ticket.trust === "unverified" || ticket.isPossibleFood;
   const needsLocation = ticket.isPinnable;
   const dietaryBadge = dietaryBadgeFor(ticket);
   const [pinText, setPinText] = useState("");
@@ -129,28 +129,44 @@ export function DetailPanel({ ticket, toast, onClose, onReport }: DetailPanelPro
                   textAlign: "center",
                   fontFamily: "var(--font-display)",
                   fontWeight: 800,
-                  fontSize: 13,
-                  color: "#B7791F",
-                  border: "3px solid #B7791F",
+                  fontSize: ticket.isPossibleFood ? 13 : 13,
+                  color: ticket.stampColor,
+                  border: `3px solid ${ticket.stampColor}`,
                   borderRadius: 8,
                   padding: "8px 10px",
                   transform: "rotate(-6deg)",
                   lineHeight: 1.05,
                 }}
               >
-                UNVERIFIED
-                <div
-                  style={{
-                    fontFamily: "var(--font-mono)",
-                    fontWeight: 400,
-                    fontSize: 8,
-                    letterSpacing: "1px",
-                    color: "#B7791F",
-                    marginTop: 3,
-                  }}
-                >
-                  NOT YET CONFIRMED
-                </div>
+                {ticket.stampLabel}
+                {ticket.isPossibleFood && (
+                  <div
+                    style={{
+                      fontFamily: "var(--font-mono)",
+                      fontWeight: 400,
+                      fontSize: 8,
+                      letterSpacing: "1px",
+                      color: ticket.stampColor,
+                      marginTop: 3,
+                    }}
+                  >
+                    FOOD UNCONFIRMED
+                  </div>
+                )}
+                {!ticket.isPossibleFood && (
+                  <div
+                    style={{
+                      fontFamily: "var(--font-mono)",
+                      fontWeight: 400,
+                      fontSize: 8,
+                      letterSpacing: "1px",
+                      color: ticket.stampColor,
+                      marginTop: 3,
+                    }}
+                  >
+                    NOT YET CONFIRMED
+                  </div>
+                )}
               </div>
             ) : (
               <div
@@ -297,9 +313,52 @@ export function DetailPanel({ ticket, toast, onClose, onReport }: DetailPanelPro
               marginBottom: 12,
             }}
           >
-            — REPORT WHAT YOU SEE —
+            {ticket.isPossibleFood
+              ? "— CONFIRM FOOD AT THIS EVENT —"
+              : "— REPORT WHAT YOU SEE —"}
           </div>
 
+          {ticket.isPossibleFood ? (
+            <div className="mm-detail-report-grid">
+              <button
+                type="button"
+                onClick={() => onReport("food_yes")}
+                className="mm-detail-report-btn"
+                style={{
+                  fontFamily: "var(--font-sans)",
+                  fontWeight: 500,
+                  fontSize: 13.5,
+                  background: "#FFFDF7",
+                  color: "#3C7A45",
+                  border: "2.5px solid #3C7A45",
+                  borderRadius: 8,
+                  cursor: "pointer",
+                  padding: "11px 8px",
+                }}
+              >
+                There&apos;s food
+              </button>
+              <button
+                type="button"
+                onClick={() => onReport("food_no")}
+                className="mm-detail-report-btn"
+                style={{
+                  fontFamily: "var(--font-sans)",
+                  fontWeight: 500,
+                  fontSize: 13.5,
+                  background: "#FFFDF7",
+                  color: "#C0341D",
+                  border: "2.5px solid #C0341D",
+                  borderRadius: 8,
+                  cursor: "pointer",
+                  padding: "11px 8px",
+                }}
+              >
+                No food here
+              </button>
+            </div>
+          ) : (
+            <>
           {needsLocation && (
             <div style={{ marginBottom: 12 }}>
               <label
@@ -352,6 +411,8 @@ export function DetailPanel({ ticket, toast, onClose, onReport }: DetailPanelPro
               </button>
             ))}
           </div>
+            </>
+          )}
 
           <div
             style={{

@@ -5,7 +5,7 @@ import {
   formatClassificationLine,
 } from "../src/ingest/classifyEvents.js";
 import { initStore, flushPersist } from "../src/store/ticketStore.js";
-import { ingestClassified } from "../src/ingest/ingest.js";
+import { ingestClassificationReport } from "../src/ingest/ingest.js";
 
 async function main(): Promise<void> {
   initStore();
@@ -18,14 +18,20 @@ async function main(): Promise<void> {
   for (const verdict of report.kept) {
     console.log(formatClassificationLine(verdict));
   }
+  console.log(`\n=== POSSIBLE (${report.possible.length}) ===`);
+  for (const verdict of report.possible) {
+    console.log(formatClassificationLine(verdict));
+  }
   console.log(`\n=== DROPPED (${report.dropped.length}) ===`);
   for (const verdict of report.dropped) {
     console.log(formatClassificationLine(verdict));
   }
 
-  const inserted = ingestClassified(report.kept);
+  const inserted = ingestClassificationReport(report);
   flushPersist();
-  console.log(`\n[ingest] inserted ${inserted.length} tickets`);
+  console.log(
+    `\n[ingest] inserted ${inserted.length} tickets (kept ${report.kept.length}, possible ${report.possible.length}, dropped ${report.dropped.length})`,
+  );
 }
 
 void main().catch((err) => {

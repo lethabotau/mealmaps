@@ -92,6 +92,11 @@ export interface Ticket {
   /** External link for auto-ingested tickets (society event page). */
   sourceUrl?: string;
   /**
+   * Event start instant (ISO 8601), set on auto-ingest for Sydney-aware WHEN
+   * filtering. Absent on human tickets — those fall back to inclusive rules.
+   */
+  startsAtIso?: string;
+  /**
    * Verification tier. Absent means `confirmed` (human tickets). Auto-ingested
    * tickets start `unverified` and flip to `confirmed` on a crowd "still" report.
    */
@@ -102,7 +107,7 @@ export interface Ticket {
    */
   onCampus?: boolean;
   /** Auto-ingest classifier tier — stored for deck/Q&A, not shown in UI. */
-  foodLikelihood?: "high" | "medium";
+  foodLikelihood?: "high" | "medium" | "possible";
   /** Auto-ingest classifier reason — stored for deck/Q&A, not shown in UI. */
   classifyReason?: string;
   /** Dietary tags/allergens. Absent = never checked (shown as unconfirmed). */
@@ -113,6 +118,11 @@ export interface Ticket {
    * {@link TicketView.effectiveWorth} time-decay and the freshness sort tiebreak.
    */
   confirmedAt?: string;
+  /**
+   * When `"unconfirmed"`, food at this event is plausible but unstated — crowd
+   * can confirm or deny via `food_yes` / `food_no` reports.
+   */
+  foodStatus?: FoodStatus;
 }
 
 export interface TicketConfirmMeta {
@@ -121,7 +131,17 @@ export interface TicketConfirmMeta {
   lastReportedBy?: UserIdentity;
 }
 
-export type ReportKind = "still" | "gone" | "queue" | "members" | "all";
+export type ReportKind =
+  | "still"
+  | "gone"
+  | "queue"
+  | "members"
+  | "all"
+  | "food_yes"
+  | "food_no";
+
+/** Set on possible-tier auto tickets until crowd confirms or denies food. */
+export type FoodStatus = "unconfirmed";
 
 export interface ReportRecord {
   id: string;
@@ -168,13 +188,29 @@ export interface AssistantTicketContext {
   name: string;
   source: string;
   cost: number;
+  costLabel: string;
   area: CampusArea;
   walk: number | null;
+  walkLabel: string;
   where: string;
-  ends: string;
+  /** Resolved display time, e.g. "WHEN Mon 3:00 pm". */
+  when: string;
   access: string;
   worth: WorthLevel;
   status: TicketStatus;
+  trust: TrustTier | "confirmed";
+  /** True when food at this event is plausible but unconfirmed. */
+  foodUnconfirmed?: boolean;
+  /** True when society/event has confirmed or likely food (not possible-tier). */
+  confirmedFood: boolean;
+  schedule: {
+    /** Same logic as the app's Today filter. */
+    matchesToday: boolean;
+    matchesNow: boolean;
+    matchesTomorrow: boolean;
+    /** Sydney weekday+date when known, e.g. "Tuesday 7 July". */
+    dayLabel: string | null;
+  };
 }
 
 export interface ExtractedPost {
@@ -291,6 +327,13 @@ export interface TicketView extends Ticket {
   effectiveWorth: WorthLevel;
   /** "last confirmed X min ago", computed from `confirmedAt` when known. */
   freshnessLabel?: string;
+  /** True when food provision is plausible but not yet confirmed. */
+  isPossibleFood: boolean;
+  /** Stamp on ticket stub (FOOD?, UNVERIFIED, or worth label). */
+  stampLabel: string;
+  stampColor: string;
+  /** Card/detail prompt for possible-tier tickets. */
+  foodConfirmPrompt: string | null;
 }
 
 export interface RankedTicketView extends TicketView {

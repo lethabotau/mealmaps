@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import type { TicketView } from "@mealmap/shared";
+import { toTicketView, type TicketView } from "@mealmap/shared";
 import { layoutDashboardTickets } from "./dashboardTickets.js";
 
 function stub(id: string): TicketView {
-  return {
+  return toTicketView({
     id,
     no: id,
     name: id,
@@ -19,27 +19,7 @@ function stub(id: string): TicketView {
     status: "available",
     blurb: "b",
     createdBy: { userId: "u", displayName: "U" },
-    walk: 5,
-    showWalk: true,
-    isPinnable: false,
-    whereDisplay: "Quad",
-    timeLabel: "WHEN",
-    timeText: "Mon 1:00 pm",
-    timeColor: "#E5431E",
-    walkStubLabel: "MIN WALK",
-    walkDetailText: "5 min",
-    costLabel: "FREE",
-    costColor: "#E5431E",
-    worthLabel: "MAYBE",
-    worthColor: "#B7791F",
-    statusLabel: "AVAILABLE",
-    statusColor: "#2D6A4F",
-    endsColor: "#E5431E",
-    confirmCount: 0,
-    lastChecked: "now",
-    effectiveStatus: "available",
-    effectiveWorth: "maybe",
-  };
+  });
 }
 
 describe("layoutDashboardTickets", () => {

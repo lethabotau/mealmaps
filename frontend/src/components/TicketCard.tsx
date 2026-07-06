@@ -8,7 +8,6 @@ interface TicketCardProps {
 
 export function TicketCard({ ticket, onClick }: TicketCardProps) {
   const isAutoSource = ticket.createdBy.userId === SYSTEM_INGEST_USER.userId;
-  const isUnverified = ticket.trust === "unverified";
   const dietaryBadge = dietaryBadgeFor(ticket);
   return (
     <button
@@ -149,45 +148,39 @@ export function TicketCard({ ticket, onClick }: TicketCardProps) {
             {ticket.walkStubLabel}
           </div>
         </div>
-        {isUnverified ? (
+        <div
+          className="mm-ticket-card-stub-stamp"
+          style={{
+            fontFamily: "var(--font-display)",
+            fontWeight: 800,
+            fontSize: ticket.isPossibleFood ? 11 : 14,
+            letterSpacing: "0.3px",
+            color: ticket.stampColor,
+            border: `2.5px solid ${ticket.stampColor}`,
+            borderRadius: 6,
+            padding: ticket.isPossibleFood ? "5px 5px" : "5px 6px",
+            textAlign: "center",
+            transform: "rotate(-7deg)",
+            lineHeight: 1.05,
+            flexShrink: 0,
+          }}
+        >
+          {ticket.stampLabel}
+        </div>
+        {ticket.foodConfirmPrompt && (
           <div
-            className="mm-ticket-card-stub-stamp"
             style={{
-              fontFamily: "var(--font-display)",
-              fontWeight: 800,
-              fontSize: 11,
-              letterSpacing: "0.3px",
+              fontFamily: "var(--font-mono)",
+              fontSize: 9,
+              letterSpacing: "0.5px",
               color: "#B7791F",
-              border: "2.5px solid #B7791F",
-              borderRadius: 6,
-              padding: "5px 5px",
-              textAlign: "center",
-              transform: "rotate(-7deg)",
-              lineHeight: 1.05,
               flexShrink: 0,
+              textAlign: "right",
+              maxWidth: 120,
+              lineHeight: 1.2,
             }}
           >
-            UNVERIFIED
-          </div>
-        ) : (
-          <div
-            className="mm-ticket-card-stub-stamp"
-            style={{
-              fontFamily: "var(--font-display)",
-              fontWeight: 800,
-              fontSize: 14,
-              letterSpacing: "0.4px",
-              color: ticket.worthColor,
-              border: `2.5px solid ${ticket.worthColor}`,
-              borderRadius: 6,
-              padding: "5px 6px",
-              textAlign: "center",
-              transform: "rotate(-7deg)",
-              lineHeight: 1.05,
-              flexShrink: 0,
-            }}
-          >
-            {ticket.worthLabel}
+            {ticket.foodConfirmPrompt}
           </div>
         )}
         <div

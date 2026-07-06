@@ -24,6 +24,14 @@ import type {
 import { SEED_AUTHORS } from "./seedUsers.js";
 import { areaVantage, computeWalk, coordsFor } from "./campus.js";
 import { costDisplayFor, isFreeCost } from "./price.js";
+import {
+  formatSydneyNowPrompt,
+  isTomorrowSydney,
+  resolveTicketStartMs,
+  sydneyEventDayLabel,
+  ticketMatchesTimeFilter,
+  timeWindowFromStartMs,
+} from "./time.js";
 
 /**
  * Fixed identity for auto-ingested tickets. Shared so backend can stamp it and
@@ -133,6 +141,35 @@ export const OFF_CAMPUS_WHERE = "off-campus event";
 
 /** Actionable where-line for on-campus tickets awaiting a crowd pin. */
 export const PINNABLE_WHERE = "📍 Been here? Pin the location";
+
+/** Amber stamp for possible-tier tickets (food plausible but unstated). */
+export const POSSIBLE_FOOD_STAMP = "FOOD?";
+export const POSSIBLE_FOOD_COLOR = "#B7791F";
+export const POSSIBLE_FOOD_CONFIRM_PROMPT =
+  "Been here? Confirm if there's food";
+
+export function isPossibleFoodTicket(ticket: Ticket): boolean {
+  return ticket.foodStatus === "unconfirmed";
+}
+
+/** Event id from an auto ticket id (`auto-<eventId>`), or null. */
+export function eventIdFromAutoTicketId(ticketId: string): string | null {
+  return ticketId.startsWith("auto-") ? ticketId.slice(5) : null;
+}
+
+export function ticketStampForView(
+  ticket: Ticket,
+  worthLabel: string,
+  worthColor: string,
+): { label: string; color: string } {
+  if (isPossibleFoodTicket(ticket)) {
+    return { label: POSSIBLE_FOOD_STAMP, color: POSSIBLE_FOOD_COLOR };
+  }
+  if (ticket.trust === "unverified") {
+    return { label: "UNVERIFIED", color: "#B7791F" };
+  }
+  return { label: worthLabel, color: worthColor };
+}
 
 export function isOnCampus(ticket: Ticket): boolean {
   return ticket.onCampus !== false;
@@ -253,11 +290,18 @@ export function freshnessLabelFor(
 }
 
 /**
- * Trust tier for ranking: confirmed (or absent = human) sorts above unverified
- * (auto-ingested) tickets.
+ * Sort tier: confirmed humans & promoted tickets (0) → food-likely autos (1)
+ * → possible-tier autos (2).
  */
+export function foodTierRank(ticket: Ticket): number {
+  if (isPossibleFoodTicket(ticket)) return 2;
+  if (ticket.trust === "unverified") return 1;
+  return 0;
+}
+
+/** @deprecated Prefer {@link foodTierRank} for sort order. */
 export function trustRank(ticket: Ticket): number {
-  return ticket.trust === "unverified" ? 1 : 0;
+  return foodTierRank(ticket);
 }
 
 /** Time proximity for ranking: sooner food sorts first (now < hour < today). */
@@ -275,34 +319,83 @@ export function effectiveStatus(
 }
 
 /**
- * Reduce live tickets to the slim, answer-relevant shape the assistant model
- * sees as grounding context. Applies crowd overrides so "gone" is reflected.
+ * Reduce live tickets to resolved, schedule-aware context for the assistant.
+ * Uses the same TicketView resolution (walk, when label, cost label) as the UI.
  */
 export function ticketsForAssistant(
   tickets: Ticket[],
   overrides: TicketOverrides = {},
+  confirm: Record<string, TicketConfirmMeta> = {},
+  nowMs = Date.now(),
   vantage: CampusArea = "upper",
 ): AssistantTicketContext[] {
   return tickets.map((ticket) => {
-    const showWalk = isOnCampus(ticket);
-    const walk = showWalk
-      ? computeWalk(areaVantage(vantage), ticket.coords)
-      : null;
+    const view = toTicketView(ticket, overrides, confirm, vantage);
+    const startMs = resolveTicketStartMs(ticket, nowMs);
 
     return {
-      id: ticket.id,
-      name: ticket.name,
-      source: ticket.source,
-      cost: ticket.cost,
-      area: ticket.area,
-      walk,
-      where: whereDisplayFor(ticket),
-      ends: ticket.ends,
-      access: ticket.access,
-      worth: ticket.worth,
-      status: effectiveStatus(ticket, overrides),
+      id: view.id,
+      name: view.name,
+      source: view.source,
+      cost: view.cost,
+      costLabel: view.costLabel,
+      area: view.area,
+      walk: view.walk,
+      walkLabel: view.walkDetailText,
+      where: view.whereDisplay,
+      when: `${view.timeLabel} ${view.timeText}`,
+      access: view.access,
+      worth: view.effectiveWorth,
+      status: view.effectiveStatus,
+      trust: view.trust ?? "confirmed",
+      foodUnconfirmed: view.isPossibleFood || undefined,
+      confirmedFood:
+        view.effectiveStatus !== "gone" && !view.isPossibleFood,
+      schedule: {
+        matchesToday: ticketMatchesTimeFilter(ticket, "today", nowMs),
+        matchesNow: ticketMatchesTimeFilter(ticket, "now", nowMs),
+        matchesTomorrow:
+          startMs !== null && isTomorrowSydney(startMs, nowMs),
+        dayLabel: startMs !== null ? sydneyEventDayLabel(startMs) : null,
+      },
     };
   });
+}
+
+/** System prompt for the voice assistant — clock is computed at request time. */
+export function buildAssistantSystemPrompt(nowMs = Date.now()): string {
+  const clock = formatSydneyNowPrompt(nowMs);
+  return `You are MealMap's voice assistant. Students ask what free or cheap \
+food is available on campus, and you answer out loud.
+
+${clock}
+
+Rules:
+- Answer ONLY from the ticket list in the user message. Never invent food, \
+locations, times, or prices.
+- Each ticket has schedule flags (matchesToday, matchesNow, matchesTomorrow), \
+dayLabel, and confirmedFood — trust them; Today flags use the same filter logic \
+as the app.
+- MealMap is about campus food. Treat "today", "free food", and "what's on" as \
+food questions unless the user clearly asks about something else.
+- For food today: only cite tickets where matchesToday, confirmedFood is true, \
+and status is not "gone". If none, say plainly there is nothing confirmed \
+today and name the nearest upcoming confirmedFood options with dayLabel and when \
+(e.g. "Nothing confirmed today — Tuesday has Christian Union's free lunch at \
+11am"). You may briefly mention foodUnconfirmed today events as unconfirmed.
+- For "tomorrow" / free food tomorrow: use matchesTomorrow and confirmedFood. \
+If only foodUnconfirmed matches, say food isn't confirmed yet.
+- For "this week": summarize upcoming confirmedFood tickets by dayLabel.
+- Keep it to 1-2 short, natural spoken sentences. No markdown, no lists, no emoji.
+- cost/costLabel: 0 or FREE means free. walk is minutes from upper campus \
+(null if unknown/off-campus). worth: high = go now.
+- If foodUnconfirmed is true, note food isn't confirmed yet.
+- Never say you don't know the current date — it is above.
+- Do not tell users to "check the event page" as your main answer when ticket \
+data already answers the question.
+- If no tickets match at all, say you don't know of anything matching.
+- Respond with JSON: {"answer": string, "citedTicketIds": string[]}. \
+citedTicketIds are ticket ids your answer relies on (may be empty).`;
 }
 
 export function filterTickets(
@@ -314,13 +407,7 @@ export function filterTickets(
 ): Ticket[] {
   const list = tickets.filter((ticket) => {
     if (filters.freeOnly && !isFreeCost(ticket.cost)) return false;
-    if (filters.time === "now" && ticket.time !== "now") return false;
-    if (
-      filters.time === "hour" &&
-      !(ticket.time === "now" || ticket.time === "hour")
-    ) {
-      return false;
-    }
+    if (!ticketMatchesTimeFilter(ticket, filters.time)) return false;
     if (
       filters.safeForMe &&
       dietaryProfile &&
@@ -338,8 +425,8 @@ export function filterTickets(
     computeWalk(vantageCoords, ticket.coords) ?? 26;
 
   return list.sort((a, b) => {
-    const trustDiff = trustRank(a) - trustRank(b);
-    if (trustDiff !== 0) return trustDiff;
+    const tierDiff = foodTierRank(a) - foodTierRank(b);
+    if (tierDiff !== 0) return tierDiff;
 
     const aGone = effectiveStatus(a, overrides) === "gone" ? 1 : 0;
     const bGone = effectiveStatus(b, overrides) === "gone" ? 1 : 0;
@@ -380,6 +467,10 @@ export function toTicketView(
     : null;
   const cost = costDisplayFor(ticket.cost, ticket.sourcePrice);
   const worth = decayedWorth(ticket);
+  const worthLabel = WORTH_LABELS[worth];
+  const worthColor = WORTH_COLORS[worth];
+  const stamp = ticketStampForView(ticket, worthLabel, worthColor);
+  const isPossibleFood = isPossibleFoodTicket(ticket);
 
   return {
     ...ticket,
@@ -397,14 +488,18 @@ export function toTicketView(
     endsColor: timeLine.color,
     costLabel: cost.label,
     costColor: cost.color,
-    worthLabel: WORTH_LABELS[worth],
-    worthColor: WORTH_COLORS[worth],
+    worthLabel,
+    worthColor,
     effectiveWorth: worth,
     statusLabel: STATUS_LABELS[status],
     statusColor: STATUS_COLORS[status],
     confirmCount: meta?.count ?? 3,
     lastChecked: meta?.last ?? "4 min ago",
     freshnessLabel: freshnessLabelFor(ticket),
+    isPossibleFood,
+    stampLabel: stamp.label,
+    stampColor: stamp.color,
+    foodConfirmPrompt: isPossibleFood ? POSSIBLE_FOOD_CONFIRM_PROMPT : null,
   };
 }
 
@@ -498,21 +593,20 @@ const CONFIDENCE_WEIGHT: Record<FieldConfidence, number> = {
   low: 0.3,
 };
 
-const HOUR_MS = 60 * 60 * 1000;
-
 /**
  * Buckets normalized timing into a {@link TimeWindow} for ranking/filtering.
  * `null` (regex fallback / no stated time) defaults to "today".
  */
-export function timeWindowFromNormalized(tn: TimeNormalized | null): TimeWindow {
+export function timeWindowFromNormalized(
+  tn: TimeNormalized | null,
+  nowMs = Date.now(),
+): TimeWindow {
   if (!tn) return "today";
   if (tn.type === "now") return "now";
   if (tn.start) {
     const startMs = Date.parse(tn.start);
     if (!Number.isNaN(startMs)) {
-      const diff = startMs - Date.now();
-      if (diff <= 0) return "now";
-      if (diff <= HOUR_MS) return "hour";
+      return timeWindowFromStartMs(startMs, nowMs);
     }
   }
   return "today";

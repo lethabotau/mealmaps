@@ -49,8 +49,9 @@ export default function App() {
   const handleReport = useCallback(
     async (kind: ReportKind, locationText?: string) => {
       if (!detailId) return;
-      await submitReport(detailId, kind, locationText);
-      setToast(REPORT_TOAST[kind] ?? "Thanks for the update!");
+    await submitReport(detailId, kind, locationText);
+    setToast(REPORT_TOAST[kind] ?? "Thanks for the update!");
+    if (kind === "food_no") setDetailId(null);
     },
     [detailId, submitReport],
   );

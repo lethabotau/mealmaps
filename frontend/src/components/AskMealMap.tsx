@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { TicketView } from "@mealmap/shared";
 import { useAssistant } from "../hooks/useAssistant";
 import type { PendingAction } from "../hooks/useAuthGate";
+import { VoicePoweredOrb } from "./ui/voice-powered-orb";
 
 interface AskMealMapProps {
   gate: (action: PendingAction, run: () => void | Promise<void>) => void;
@@ -43,10 +44,6 @@ export function AskMealMap({
     }
   }, [resumeToken, startListening]);
 
-  const orbClass = `mm-orb mm-orb--compact${
-    status === "idle" ? "" : ` is-${status}`
-  }`;
-
   const handleOrb = () => {
     if (status === "listening") {
       stopListening();
@@ -68,6 +65,15 @@ export function AskMealMap({
     .map((id) => tickets.find((t) => t.id === id))
     .filter((t): t is TicketView => Boolean(t));
 
+  const orbShellClass = [
+    "mm-orb-shell",
+    "mm-orb-shell--compact",
+    status === "listening" ? "is-listening" : "",
+    status === "error" ? "is-error" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   return (
     <div className="mm-ask-panel mm-fade-up">
       <div className="mm-ask-head">
@@ -77,20 +83,29 @@ export function AskMealMap({
         </p>
       </div>
 
-      <form className="mm-ask-bar" onSubmit={submitTyped}>
+      <div className="mm-ask-orb-row">
         <button
           type="button"
-          className={orbClass}
+          className={orbShellClass}
           onClick={handleOrb}
+          disabled={status === "thinking" || status === "speaking"}
           aria-label={
             status === "listening" ? "Stop listening" : "Start voice input"
           }
-        />
+        >
+          <VoicePoweredOrb
+            className="mm-orb-canvas"
+            enableVoiceControl={status === "listening"}
+          />
+        </button>
+      </div>
+
+      <form className="mm-ask-bar" onSubmit={submitTyped}>
         <input
           value={typed}
           onChange={(e) => setTyped(e.target.value)}
           placeholder={
-            sttSupported ? "Type or tap the mic…" : "Type your question…"
+            sttSupported ? "…or type your question" : "Type your question…"
           }
           className="mm-form-input mm-ask-input"
           disabled={status === "thinking" || status === "speaking"}

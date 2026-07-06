@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   DEFAULT_FILTERS,
   OFF_CAMPUS_WHERE,
@@ -7,15 +7,18 @@ import {
   SYSTEM_INGEST_USER,
   UNCONFIRMED_WHERE,
   buildQuickAddTicket,
+  buildAssistantSystemPrompt,
   extractFromPost,
   filterTickets,
   normalizeArea,
   onCampusRank,
   parseTimeLine,
+  ticketsForAssistant,
   toTicketView,
   whereDisplayFor,
 } from "./tickets.js";
 import type { Ticket } from "./types.js";
+import { sydneyLocalToUtcMs } from "./time.js";
 
 describe("filterTickets", () => {
   it("returns only free tickets when freeOnly is true", () => {
@@ -75,6 +78,106 @@ describe("filterTickets", () => {
     );
     expect([...fromUpper].sort()).toEqual([...fromLower].sort());
     expect(fromUpper).not.toEqual(fromLower);
+  });
+
+  it("excludes future-weekday auto tickets from the Today filter", () => {
+    const now = sydneyLocalToUtcMs(2026, 7, 6, 10, 0);
+    vi.useFakeTimers();
+    vi.setSystemTime(now);
+    try {
+      const autoTickets: Ticket[] = [
+      {
+        id: "auto-today",
+        no: "1",
+        name: "Tonight coffee",
+        source: "Hall",
+        cost: 0,
+        area: "upper",
+        time: "today",
+        where: "location unconfirmed",
+        ends: "starts Mon 9:00 pm",
+        startsAtIso: new Date(sydneyLocalToUtcMs(2026, 7, 6, 21, 0)).toISOString(),
+        access: "check event page",
+        confirmed: "not yet confirmed",
+        worth: "maybe",
+        status: "available",
+        blurb: "b",
+        createdBy: SYSTEM_INGEST_USER,
+        trust: "unverified",
+        onCampus: true,
+      },
+      {
+        id: "auto-wed",
+        no: "2",
+        name: "Wed dinner",
+        source: "Soc",
+        cost: 0,
+        area: "upper",
+        time: "today",
+        where: "location unconfirmed",
+        ends: "starts Wed 7:00 pm",
+        startsAtIso: new Date(sydneyLocalToUtcMs(2026, 7, 8, 19, 0)).toISOString(),
+        access: "check event page",
+        confirmed: "not yet confirmed",
+        worth: "maybe",
+        status: "available",
+        blurb: "b",
+        createdBy: SYSTEM_INGEST_USER,
+        trust: "unverified",
+        onCampus: true,
+      },
+    ];
+
+    const result = filterTickets(
+      autoTickets,
+      { ...DEFAULT_FILTERS, time: "today" },
+      {},
+      "upper",
+    );
+    expect(result.map((t) => t.id)).toEqual(["auto-today"]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("ranks possible-tier autos below food-likely unverified autos", () => {
+    const human: Ticket = {
+      ...SEED_TICKETS[0],
+      id: "human",
+      trust: "confirmed",
+    };
+    const foodLikely: Ticket = {
+      id: "auto-food",
+      no: "1",
+      name: "Boodle Fight",
+      source: "Soc",
+      cost: 0,
+      area: "upper",
+      time: "today",
+      where: "location unconfirmed",
+      ends: "starts Mon 12:00 pm",
+      access: "check event page",
+      confirmed: "not yet confirmed",
+      worth: "high",
+      status: "available",
+      blurb: "b",
+      createdBy: SYSTEM_INGEST_USER,
+      trust: "unverified",
+      onCampus: true,
+    };
+    const possible: Ticket = {
+      ...foodLikely,
+      id: "auto-possible",
+      name: "Trivia Night",
+      foodStatus: "unconfirmed",
+      foodLikelihood: "possible",
+    };
+
+    const sorted = filterTickets(
+      [possible, foodLikely, human],
+      DEFAULT_FILTERS,
+    ).map((t) => t.id);
+    expect(sorted).toEqual(["human", "auto-food", "auto-possible"]);
   });
 });
 
@@ -213,5 +316,65 @@ describe("toTicketView", () => {
     expect(view.timeText).toBe("Wed 7:00 pm");
     expect(view.isPinnable).toBe(true);
     expect(view.showWalk).toBe(true);
+  });
+});
+
+describe("ticketsForAssistant", () => {
+  const now = sydneyLocalToUtcMs(2026, 7, 6, 10, 0);
+
+  it("resolves TicketView fields and Today-filter schedule flags", () => {
+    const todayAuto: Ticket = {
+      id: "auto-today",
+      no: "1",
+      name: "Trivia Night",
+      source: "Antique Society",
+      cost: 0,
+      area: "upper",
+      time: "today",
+      where: UNCONFIRMED_WHERE,
+      ends: "starts Mon 5:00 pm",
+      access: "check event page",
+      confirmed: "not yet confirmed",
+      worth: "maybe",
+      status: "available",
+      blurb: "b",
+      createdBy: SYSTEM_INGEST_USER,
+      trust: "unverified",
+      onCampus: true,
+      foodStatus: "unconfirmed",
+      foodLikelihood: "possible",
+    };
+    const tuesdayLunch: Ticket = {
+      ...todayAuto,
+      id: "auto-tue",
+      name: "Lunch; Sports and Hangs",
+      source: "Christian Union",
+      ends: "starts Tue 11:00 am",
+    };
+
+    const ctx = ticketsForAssistant([todayAuto, tuesdayLunch], {}, {}, now);
+    const today = ctx.find((t) => t.id === "auto-today")!;
+    const tue = ctx.find((t) => t.id === "auto-tue")!;
+
+    expect(today.when).toBe("WHEN Mon 5:00 pm");
+    expect(today.schedule.matchesToday).toBe(true);
+    expect(today.schedule.matchesTomorrow).toBe(false);
+    expect(today.foodUnconfirmed).toBe(true);
+    expect(today.confirmedFood).toBe(false);
+    expect(tue.schedule.matchesToday).toBe(false);
+    expect(tue.schedule.matchesTomorrow).toBe(true);
+    expect(tue.schedule.dayLabel).toBe("Tuesday 7 July");
+  });
+});
+
+describe("buildAssistantSystemPrompt", () => {
+  it("includes the Sydney clock line", () => {
+    const now = sydneyLocalToUtcMs(2026, 7, 6, 10, 45);
+    const prompt = buildAssistantSystemPrompt(now);
+    expect(prompt).toContain(
+      "Current date/time: Monday 6 July 2026, 10:45 am (Australia/Sydney)",
+    );
+    expect(prompt).toContain("matchesToday");
+    expect(prompt).toContain("Nothing confirmed today");
   });
 });

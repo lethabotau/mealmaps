@@ -1,8 +1,12 @@
 import type { Ticket, TimeWindow, WorthLevel } from "@mealmap/shared";
-import { parseEventPriceToCost, timeWindowFromNormalized } from "@mealmap/shared";
+import {
+  parseEventPriceToCost,
+  timeWindowFromNormalized,
+  timeWindowFromStartMs,
+} from "@mealmap/shared";
 import { insertAutoTicket } from "../store/ticketStore.js";
-import type { ClassifiedEvent, KeptLikelihood } from "./classifyEvents.js";
-import { classifyEvents } from "./classifyEvents.js";
+import type { ClassifiedEvent, ClassificationReport, KeptLikelihood, PossibleEvent } from "./classifyEvents.js";
+import { classifyEventsWithReport } from "./classifyEvents.js";
 import { fetchEvents, type SocietyEvent } from "./fetchEvents.js";
 
 const TIME_ZONE = "Australia/Sydney";
@@ -10,6 +14,7 @@ const TIME_ZONE = "Australia/Sydney";
 export interface IngestSummary {
   fetched: number;
   classified: number;
+  possible: number;
   inserted: number;
   insertedTickets: Ticket[];
 }
@@ -22,7 +27,11 @@ function worthFromLikelihood(likelihood: KeptLikelihood): WorthLevel {
 export { parseEventPriceToCost };
 
 function timeWindowFromIso(iso: string): TimeWindow {
-  return timeWindowFromNormalized({ type: "specific", start: iso, confidence: "low" });
+  const startMs = Date.parse(iso);
+  if (Number.isNaN(startMs)) {
+    return timeWindowFromNormalized(null);
+  }
+  return timeWindowFromStartMs(startMs);
 }
 
 function formatStart(iso: string): string {
@@ -60,36 +69,72 @@ export function resolveAutoBlurb(
   return buildFallbackBlurb(event);
 }
 
-/** Insert tickets from classifier survivors. */
-export function ingestClassified(classified: ClassifiedEvent[]): Ticket[] {
-  const insertedTickets: Ticket[] = [];
-  for (const {
+/** Blurb for possible-tier tickets — notes food is unconfirmed. */
+export function resolvePossibleBlurb(
+  event: SocietyEvent,
+  generated: string | null | undefined,
+): string {
+  const base = resolveAutoBlurb(event, generated);
+  if (/isn't confirmed|not confirmed|unconfirmed/i.test(base)) return base;
+  return `${base} Food here isn't confirmed yet — confirm if you spot a spread.`;
+}
+
+function insertFromClassified(
+  classified: ClassifiedEvent | PossibleEvent,
+  opts: { possibleTier?: boolean },
+): Ticket | undefined {
+  const {
     event,
     food_likelihood,
     reason,
     blurb,
     venue_hint,
     on_campus,
-  } of classified) {
-    const { inserted, ticket } = insertAutoTicket({
-      eventId: event.event_id || event.objectID,
-      name: event.event_name || "Society event",
-      society: event.society_name || "UNSW society",
-      cost: parseEventPriceToCost(event.price),
-      sourcePrice: event.price.trim() || undefined,
-      time: timeWindowFromIso(event.starts_at_iso),
-      worth: worthFromLikelihood(food_likelihood),
-      ends: formatStart(event.starts_at_iso),
-      sourceUrl: event.source_url,
-      blurb: resolveAutoBlurb(event, blurb),
-      foodLikelihood: food_likelihood,
-      classifyReason: reason,
-      venueHint: venue_hint,
-      onCampus: on_campus,
-    });
-    if (inserted && ticket) insertedTickets.push(ticket);
+  } = classified;
+  const { inserted, ticket } = insertAutoTicket({
+    eventId: event.event_id || event.objectID,
+    name: event.event_name || "Society event",
+    society: event.society_name || "UNSW society",
+    cost: parseEventPriceToCost(event.price),
+    sourcePrice: event.price.trim() || undefined,
+    time: timeWindowFromIso(event.starts_at_iso),
+    startsAtIso: event.starts_at_iso,
+    worth: opts.possibleTier
+      ? "maybe"
+      : worthFromLikelihood(food_likelihood as KeptLikelihood),
+    ends: formatStart(event.starts_at_iso),
+    sourceUrl: event.source_url,
+    blurb: opts.possibleTier
+      ? resolvePossibleBlurb(event, blurb)
+      : resolveAutoBlurb(event, blurb),
+    foodLikelihood: food_likelihood,
+    classifyReason: reason,
+    venueHint: venue_hint,
+    onCampus: on_campus,
+    possibleTier: opts.possibleTier,
+  });
+  return inserted && ticket ? ticket : undefined;
+}
+
+/** Insert tickets from classifier survivors (kept + possible). */
+export function ingestClassificationReport(
+  report: ClassificationReport,
+): Ticket[] {
+  const insertedTickets: Ticket[] = [];
+  for (const item of report.kept) {
+    const ticket = insertFromClassified(item, { possibleTier: false });
+    if (ticket) insertedTickets.push(ticket);
+  }
+  for (const item of report.possible) {
+    const ticket = insertFromClassified(item, { possibleTier: true });
+    if (ticket) insertedTickets.push(ticket);
   }
   return insertedTickets;
+}
+
+/** Insert tickets from kept-tier classifier survivors only. */
+export function ingestClassified(classified: ClassifiedEvent[]): Ticket[] {
+  return ingestClassificationReport({ kept: classified, possible: [], dropped: [] });
 }
 
 /**
@@ -102,24 +147,26 @@ export async function runIngest(): Promise<IngestSummary> {
     return {
       fetched: 0,
       classified: 0,
+      possible: 0,
       inserted: 0,
       insertedTickets: [],
     };
   }
 
   const events = await fetchEvents();
-  const classified = await classifyEvents(events);
-  const insertedTickets = ingestClassified(classified);
+  const report = await classifyEventsWithReport(events);
+  const insertedTickets = ingestClassificationReport(report);
 
   const summary: IngestSummary = {
     fetched: events.length,
-    classified: classified.length,
+    classified: report.kept.length,
+    possible: report.possible.length,
     inserted: insertedTickets.length,
     insertedTickets,
   };
 
   console.log(
-    `[ingest] fetched ${summary.fetched}, classified ${summary.classified} food-likely, inserted ${summary.inserted} new`,
+    `[ingest] fetched ${summary.fetched}, kept ${summary.classified}, possible ${summary.possible}, inserted ${summary.inserted} new`,
   );
 
   return summary;

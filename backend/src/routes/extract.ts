@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { Router } from "express";
-import { requireWriteAuth } from "../auth/clerk.js";
+import { clerkAuthMiddleware, requireWriteAuth } from "../auth/clerk.js";
 import {
   extractImageWithLlm,
   extractWithLlm,
@@ -27,7 +27,7 @@ function logExtractError(context: string, err: unknown): void {
 }
 
 // Gated like other write routes — LLM extraction costs API money.
-extractRouter.post("/", requireWriteAuth, async (req, res) => {
+extractRouter.post("/", clerkAuthMiddleware, requireWriteAuth, async (req, res) => {
   const text = typeof req.body?.text === "string" ? req.body.text : "";
   const image = typeof req.body?.image === "string" ? req.body.image : "";
   const mimeType = typeof req.body?.mimeType === "string" ? req.body.mimeType : "";

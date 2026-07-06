@@ -15,6 +15,7 @@ import {
   UNCONFIRMED_WHERE,
   OFF_CAMPUS_WHERE,
   createTicketId,
+  eventIdFromAutoTicketId,
   generateTicketNumber,
   normalizeTicketCost,
   resolveLocation,
@@ -48,6 +49,9 @@ const state: StoreState = {
 /** External event ids already ingested, for cross-run dedupe. */
 const ingestedEventIds = new Set<string>();
 
+/** Event ids marked no-food by crowd — blocks re-ingest resurrection. */
+const suppressedEventIds = new Set<string>();
+
 let persistence = new StorePersistence(null);
 let initialized = false;
 
@@ -64,6 +68,10 @@ function applySnapshot(snapshot: StoreSnapshot): void {
   for (const id of snapshot.ingestedEventIds) {
     ingestedEventIds.add(id);
   }
+  suppressedEventIds.clear();
+  for (const id of snapshot.suppressedEventIds ?? []) {
+    suppressedEventIds.add(id);
+  }
 }
 
 function freshState(useSeeds: boolean): void {
@@ -72,10 +80,11 @@ function freshState(useSeeds: boolean): void {
   state.confirm = {};
   state.reports = [];
   ingestedEventIds.clear();
+  suppressedEventIds.clear();
 }
 
 function currentSnapshot(): StoreSnapshot {
-  return snapshotFromState(state, ingestedEventIds);
+  return snapshotFromState(state, ingestedEventIds, suppressedEventIds);
 }
 
 function markDirty(): void {
@@ -179,16 +188,20 @@ export interface AutoTicketInput {
   /** Raw Algolia price string for COST range display. */
   sourcePrice?: string;
   time: TimeWindow;
+  /** ISO start time from Algolia — drives Sydney-aware WHEN filtering. */
+  startsAtIso?: string;
   /** Intra-tier ranking hint derived from food likelihood (high vs maybe). */
   worth: WorthLevel;
   ends: string;
   sourceUrl: string;
   blurb: string;
-  foodLikelihood?: "high" | "medium";
+  foodLikelihood?: "high" | "medium" | "possible";
   classifyReason?: string;
   venueHint?: string | null;
   onCampus?: boolean;
   dietary?: Ticket["dietary"];
+  /** When true, inserts as possible-tier (foodStatus unconfirmed). */
+  possibleTier?: boolean;
 }
 
 function resolveAutoTicketLocation(input: {
@@ -235,6 +248,9 @@ function resolveAutoTicketLocation(input: {
 export function insertAutoTicket(
   input: AutoTicketInput,
 ): { inserted: boolean; ticket?: Ticket } {
+  if (input.eventId && suppressedEventIds.has(input.eventId)) {
+    return { inserted: false };
+  }
   if (input.eventId && ingestedEventIds.has(input.eventId)) {
     return { inserted: false };
   }
@@ -250,6 +266,7 @@ export function insertAutoTicket(
     sourcePrice: input.sourcePrice,
     area: location.area,
     time: input.time,
+    ...(input.startsAtIso ? { startsAtIso: input.startsAtIso } : {}),
     where: location.where,
     coords: location.coords,
     onCampus: location.onCampus,
@@ -266,6 +283,7 @@ export function insertAutoTicket(
     classifyReason: input.classifyReason,
     dietary: input.dietary,
     confirmedAt: new Date().toISOString(),
+    ...(input.possibleTier ? { foodStatus: "unconfirmed" as const } : {}),
   };
 
   state.tickets.push(ticket);
@@ -301,7 +319,30 @@ export function applyReport(
 
   state.reports.unshift(record);
 
-  if (kind === "still") {
+  if (kind === "food_yes") {
+    const ticket = state.tickets.find((t) => t.id === id);
+    if (ticket) {
+      delete ticket.foodStatus;
+      ticket.trust = "confirmed";
+      if (ticket.foodLikelihood === "possible") {
+        ticket.foodLikelihood = "medium";
+      }
+    }
+    state.confirm[id] = {
+      count: current.count + 1,
+      last: "just now",
+      lastReportedBy: reportedBy,
+    };
+  } else if (kind === "food_no") {
+    const eventId = eventIdFromAutoTicketId(id);
+    if (eventId) {
+      suppressedEventIds.add(eventId);
+      ingestedEventIds.add(eventId);
+    }
+    state.tickets = state.tickets.filter((t) => t.id !== id);
+    delete state.confirm[id];
+    delete state.overrides[id];
+  } else if (kind === "still") {
     const ticket = state.tickets.find((t) => t.id === id);
     if (ticket) {
       ticket.confirmedAt = new Date().toISOString();
